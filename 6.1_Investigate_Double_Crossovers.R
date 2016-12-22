@@ -737,7 +737,109 @@ ggplot(sex.map, aes(CEL.order, value, col = variable)) +
 ggsave(filename = paste0("figs/Map_run5_", AnalysisSuffix, ".png"), device = "png", width = 15, height = 10, units = "in")
 
 
+
 write.table(rectab, "results/6_Per_Chromosome_Recomb_final_a.txt")
-write.table(mapdata, "results/6_Linkage_Map_Positions_CEL_run5_a.txt")
+write.table(mapdata, "results/6_Linkage_Map_Positions_CEL_run5_a.txt", row.names = F, sep = "\t", quote = F)
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# reverse the order to match bovine orientation
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+mapdata <- read.table("results/6_Linkage_Map_Positions_CEL_run5_a.txt", header = T, stringsAsFactors = F)
+new.order <- mapdata
+
+for(i in c(6, 8, 16, 22, 31)) new.order$CEL.order[which(new.order$CEL.LG == i)] <- rev(new.order$CEL.order[which(new.order$CEL.LG == i)])
+
+new.order <- subset(new.order, select = c(CEL.LG, CEL.order, SNP.Name))
+head(new.order)
+
+new.order <- arrange(new.order, CEL.LG, CEL.order)
+
+
+system.time({
+  for(lg in c(6, 8, 16, 22, 31)){
+    
+    print(paste("Running linkage group", lg))
+    
+    create_crimap_input(gwaa.data = abeldata,
+                        familyPedigree = famped,
+                        analysisID = paste0(lg, "a_cel_dbx_rev"),
+                        snplist = new.order$SNP.Name[which(new.order$CEL.LG == lg)],
+                        use.specific.mnd = "crimap/crimap_a_cel/chrafull_doubxover.mnd",
+                        outdir = paste0("crimap/crimap_", AnalysisSuffix2),
+                        clear.existing.analysisID = TRUE)
+    
+    run_crimap_prepare(genfile = paste0("crimap/crimap_", AnalysisSuffix2, "/chr", lg, "a_cel_dbx_rev.gen"))
+    
+    
+    run_crimap_chrompic(genfile = paste0("crimap/crimap_", AnalysisSuffix2, "/chr", lg, "a_cel_dbx_rev.gen"))
+    
+    run_crimap_map(genfile = paste0("crimap/crimap_", AnalysisSuffix2, "/chr", lg, "a_cel_dbx_rev.gen"))
+    
+    
+  }
+})
+
+
+
+
+
+
+rectab <- NULL
+cm.map <- NULL
+sexsp.map <- NULL
+
+analysis.vec <- paste0(analysis.vec, "_dbx")
+analysis.vec[c(6, 8, 16, 22, 31)] <- paste0(analysis.vec[c(6, 8, 16, 22, 31)], "_rev")
+
+for(i in analysis.vec){
+  
+  test <- parse_crossovers(paste0("crimap/crimap_a_cel/chr", i, ".cmp"), familyPedigree = famped)
+  rectab <- rbind(rectab, test)
+  
+  tempmap <- parse_map_chrompic(paste0("crimap/crimap_a_cel/chr", i, ".cmp"))
+  #tempmap <- subset(tempmap, select = c(SNP.Name, cMPosition, Order, analysisID))
+  #names(tempmap)[2] <- "Position"
+  
+  tempmap$analysisID <- i
+  cm.map <- rbind(cm.map, tempmap)
+  
+  sexsp.map <- rbind(sexsp.map, parse_map(paste0("crimap/crimap_a_cel/chr", i, ".map")))
+  
+  
+}
+
+
+head(cm.map)
+head(sexsp.map)
+sexsp.map <- subset(sexsp.map, select = -c(Order, analysisID))
+
+cm.map <- join(cm.map, sexsp.map)
+names(cm.map)[3] <- "cMPosition.run5"
+
+cm.map$CEL.order <- cm.map$Order
+
+mapdata <- subset(mapdata, select = c(SNP.Name, Chr, BTA.Chr, BTA.Position, CEL.LG))
+
+cm.map <- join(cm.map, mapdata)
+
+ggplot(cm.map, aes(BTA.Position, cMPosition.run5, col = factor(BTA.Chr))) +
+  geom_point(alpha = 0.2) +
+  facet_wrap(~CEL.LG, ncol = 5, scales = "free") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "BTA Position (cM)",
+       y = "Linkage Map Length (cM)")
+
+
+write.table(rectab, "results/6_Per_Chromosome_Recomb_final_reorient_a.txt")
+write.table(cm.map, "results/6_Linkage_Map_Positions_CEL_run5_reorient_a.txt", row.names = F, sep = "\t", quote = F)
+
+
 
 

@@ -3,7 +3,6 @@ library(beepr)
 
 memory.limit(size = 800000000) #ESSENTIAL OTHERWISE YOU RUN INTO MEMORY ISSUES
 
-famped <- 
 
 #~~ read the GRM file from GCTA
 
@@ -26,10 +25,10 @@ system.time({
 })
 
 
-
+beep()
 
 system.time({
-  for(i in 29:33){
+  for(i in 1:33){
     
     print(paste("Running chromosome", i, "of 33"))
     

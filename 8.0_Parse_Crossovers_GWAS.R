@@ -51,100 +51,94 @@ mapdata <- read.table(paste0("results/4_Linkage_Map_Positions_CEL_run3_", Analys
 #mapdata <- arrange(mapdata, CEL.LG, cMPosition.run3)
 head(mapdata)
 
-lg.vec <- 1:33
+lg.vec <- 1:34
 analysis.vec <- unique(mapdata$analysisID)
 
 #max.vals <- read.table("results/5_Predicted_Physical_Size_run4_a.txt", header = T)
 
+firstRun = FALSE
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 1. Parse crossovers                      #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-rectab <- NULL
-doub.xovers <- NULL
-
-for(i in analysis.vec){
+if(firstRun == TRUE){
   
-  test <- parse_crossovers(paste0("crimap/crimap_a_cel/chr", i, ".cmp"), familyPedigree = famped)
-  rectab <- rbind(rectab, test)
+  rectab <- NULL
+  doub.xovers <- NULL
   
-  test2 <- check_double_crossovers(test)
-  doub.xovers <- rbind(doub.xovers, test2)
+  for(i in analysis.vec){
+    
+    test <- parse_crossovers(paste0("crimap/crimap_a_cel/chr", i, "_dbx.cmp"), familyPedigree = famped)
+    rectab <- rbind(rectab, test)
+    
+    test2 <- check_double_crossovers(test)
+    doub.xovers <- rbind(doub.xovers, test2)
+    
+  }
+  
+  doub.hold <- doub.xovers
+  rectab.hold <- rectab
+  
+  ggplot(rectab, aes(RecombCount)) + geom_histogram()
+  
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+  # 2. Deal with double crossovers           #
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+  
+  doub.xovers <- doub.hold
+  rectab <- rectab.hold
+  
+  doub.xovers$SpanCountDist <- doub.xovers$StopSpan - doub.xovers$StartSpan
+  doub.xovers <- subset(doub.xovers, Type == "Mid")
+  
+  ggplot(doub.xovers, aes(InfCount, fill = Singleton)) + geom_histogram(binwidth = 1) + scale_fill_brewer(palette = "Set1")
+  ggplot(doub.xovers, aes(SpanCountDist, fill = Singleton)) + geom_histogram(binwidth = 5) + scale_fill_brewer(palette = "Set1")
+  ggplot(doub.xovers, aes(InfCount, SpanCountDist)) + geom_point()
+  
+  doub.xovers <- rbind(subset(doub.xovers, Singleton == "yes"),
+                       subset(doub.xovers, SpanCountDist < 80))
+  doub.xovers<- unique(doub.xovers)
+  head(doub.xovers)
+  
+  #~~ edit rectab
+  
+  for(i in 1:nrow(doub.xovers)){
+    temp <- rectab$data[which(rectab$UniqueID == doub.xovers$UniqueID[i])]
+    substr(temp, doub.xovers$StartPos[i], doub.xovers$StopPos[i]) <- "-"
+    rectab$data[which(rectab$UniqueID == doub.xovers$UniqueID[i])] <- temp
+    rectab$RecombCount[which(rectab$UniqueID == doub.xovers$UniqueID[i])] <- RecCountFunc(temp)
+  }
+  
+  ggplot(rectab, aes(RecombCount)) + geom_histogram(binwidth = 1)
+  
+  rectab <- subset(rectab, analysisID != "34a_cel_dbx")
+  
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+  # 3. Calculate the total autosomal recombination rate #
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+  
+  recsumm <- data.frame(TotalRecombCount = tapply(rectab$RecombCount, rectab$Family, sum),
+                        TotalChrCount    = tapply(rectab$RecombCount, rectab$Family, length),
+                        TotalInfLoci     = tapply(rectab$No.Inf.Loci, rectab$Family, sum))
+  
+  temp.tab <- unique(subset(rectab, select = c(Family, RRID, ANIMAL)))
+  
+  recsumm$Family <- row.names(recsumm)                    
+  recsumm$RRID.Sex    <- NA
+  recsumm$RRID.Sex[grep("Dad", recsumm$Family)] <- "M"
+  recsumm$RRID.Sex[grep("Mum", recsumm$Family)] <- "F"
+  recsumm <- join(recsumm, temp.tab)
+  
+  recsumm$id <- recsumm$RRID
+  
+  write.table(rectab, "results/8_Per_Chromosome_Recomb.txt", row.names = F, sep = "\t", quote = F)
+  write.table(recsumm, "results/8_Per_ID_Recomb.txt", row.names = F, sep = "\t", quote = F)
   
 }
 
-doub.hold <- doub.xovers
-rectab.hold <- rectab
 
-ggplot(rectab, aes(RecombCount)) + geom_histogram()
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 2. Deal with double crossovers           #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-doub.xovers <- doub.hold
-rectab <- rectab.hold
-
-doub.xovers$SpanCountDist <- doub.xovers$StopSpan - doub.xovers$StartSpan
-doub.xovers <- subset(doub.xovers, Type == "Mid")
-
-ggplot(doub.xovers, aes(InfCount, fill = Singleton)) + geom_histogram(binwidth = 1) + scale_fill_brewer(palette = "Set1")
-ggplot(doub.xovers, aes(SpanCountDist, fill = Singleton)) + geom_histogram(binwidth = 5) + scale_fill_brewer(palette = "Set1")
-ggplot(doub.xovers, aes(InfCount, SpanCountDist)) + geom_point()
-
-doub.xovers <- rbind(subset(doub.xovers, Singleton == "yes"),
-                     subset(doub.xovers, SpanCountDist < 80))
-doub.xovers<- unique(doub.xovers)
-head(doub.xovers)
-
-#~~ edit rectab
-
-for(i in 1:nrow(doub.xovers)){
-  temp <- rectab$data[which(rectab$UniqueID == doub.xovers$UniqueID[i])]
-  substr(temp, doub.xovers$StartPos[i], doub.xovers$StopPos[i]) <- "-"
-  rectab$data[which(rectab$UniqueID == doub.xovers$UniqueID[i])] <- temp
-  rectab$RecombCount[which(rectab$UniqueID == doub.xovers$UniqueID[i])] <- RecCountFunc(temp)
-}
-
-ggplot(rectab, aes(RecombCount)) + geom_histogram(binwidth = 1)
-
-rectab <- subset(rectab, UniqueID != "34a_cel")
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 3. Calculate the total autosomal recombination rate #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-recsumm <- data.frame(TotalRecombCount = tapply(rectab$RecombCount, rectab$Family, sum),
-                      TotalChrCount    = tapply(rectab$RecombCount, rectab$Family, length),
-                      TotalInfLoci     = tapply(rectab$No.Inf.Loci, rectab$Family, sum))
-
-temp.tab <- unique(subset(rectab, select = c(Family, RRID, ANIMAL)))
-
-recsumm$Family <- row.names(recsumm)                    
-recsumm$RRID.Sex    <- NA
-recsumm$RRID.Sex[grep("Dad", recsumm$Family)] <- "M"
-recsumm$RRID.Sex[grep("Mum", recsumm$Family)] <- "F"
-recsumm <- join(recsumm, temp.tab)
-
-recsumm <- subset(recsumm, TotalRecombCount < 60)
-
-ggplot(recsumm, aes(TotalRecombCount)) + geom_histogram(binwidth = 1, col = "white") + defopts + labs(x = "Total Crossover Count")
-ggplot(recsumm, aes(RRID.Sex, TotalRecombCount)) + geom_boxplot(width = 0.5, notch = T) + defopts + labs(x = "Sex", y = "Total Crossover Count")
-
-ggplot(recsumm, aes(TotalRecombCount)) + geom_histogram(binwidth = 1) + facet_wrap(~RRID.Sex, ncol = 1) + defopts
-
-
-ggplot(recsumm, aes(TotalRecombCount, TotalInfLoci)) + geom_point() + stat_smooth() + defopts + labs(y = "Number of Informative Loci", x = "Total Crossover Count")
-
-
-head(recsumm)
-
-recsumm$id <- recsumm$RRID
-
-write.table(rectab, "results/8_Per_Chromosome_Recomb.txt", row.names = F, sep = "\t", quote = F)
-write.table(recsumm, "results/8_Per_ID_Recomb.txt", row.names = F, sep = "\t", quote = F)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 4. Carry out the GWAS
@@ -152,6 +146,19 @@ write.table(recsumm, "results/8_Per_ID_Recomb.txt", row.names = F, sep = "\t", q
 
 rectab <- read.table("results/8_Per_Chromosome_Recomb.txt", header = T)
 recsumm <- read.table("results/8_Per_ID_Recomb.txt", header = T)
+
+ggplot(recsumm, aes(TotalRecombCount)) + geom_histogram(binwidth = 1, col = "white") + defopts + labs(x = "Total Crossover Count")
+ggplot(recsumm, aes(RRID.Sex, TotalRecombCount)) + geom_boxplot(width = 0.5, notch = T) + defopts + labs(x = "Sex", y = "Total Crossover Count")
+
+ggplot(recsumm, aes(TotalRecombCount)) + geom_histogram(binwidth = 1) + facet_wrap(~RRID.Sex, ncol = 1) + defopts
+
+
+ggplot(recsumm, aes(TotalRecombCount, TotalInfLoci)) + geom_point() + stat_smooth(method = "lm") + defopts + labs(y = "Number of Informative Loci", x = "Total Crossover Count")
+ggplot(recsumm, aes(TotalRecombCount, TotalInfLoci)) + geom_point() + stat_smooth() + defopts + labs(y = "Number of Informative Loci", x = "Total Crossover Count")
+
+
+head(recsumm)
+
 
 
 recsumm.m <- droplevels(subset(recsumm, RRID.Sex == "M"))
@@ -203,10 +210,10 @@ ggplot(test, aes(cela1_red_8_100681301, TotalRecombCount)) +
   geom_boxplot(notch = T) +
   facet_wrap(~RRID.Sex)
 
-model1 <- glm(TotalRecombCount ~ cela1_red_10_26005249, data = subset(test, RRID.Sex == "F"))
-summary(model1)
-model2 <- glm(TotalRecombCount ~ cela1_red_10_26005249, data = subset(test, RRID.Sex == "M"))
-summary(model2)
+# model1 <- glm(TotalRecombCount ~ cela1_red_10_26005249, data = subset(test, RRID.Sex == "F"))
+# summary(model1)
+# model2 <- glm(TotalRecombCount ~ cela1_red_10_26005249, data = subset(test, RRID.Sex == "M"))
+# summary(model2)
 
 
 #~~ Add map information
@@ -224,13 +231,13 @@ gwas.res <- join(gwas.res, mapdata)
 chrinfo <- NULL
 
 for(i in na.omit(unique(gwas.res$CEL.LG))){
-
+  
   temp1 <- arrange(subset(gwas.res, CEL.LG == i), CEL.order)
-
+  
   temp2 <- data.frame(CEL.LG = i,
                       Start = temp1[1,"Cumu.CEL"],
                       Stop = temp1[nrow(temp1),"Cumu.CEL"])
-
+  
   chrinfo <- rbind(chrinfo, temp2)
   rm(temp1, temp2)
 }
@@ -332,11 +339,11 @@ grm.summ.RR <- asreml(fixed = TotalRecombCount ~ RRID.Sex + TotalInfLoci,
                       workspace = 500e+6, pworkspace = 500e+6)
 
 grm.summ.RR.m <- asreml(fixed = TotalRecombCount ~ TotalInfLoci,
-                      random = ~ ped(RRID) + ide(RRID),
-                      data = recsumm.m,
-                      ginverse =  list(RRID = ainv),
-                      na.method.X = "omit", na.omit.Y = "na.omit",
-                      workspace = 500e+6, pworkspace = 500e+6)
+                        random = ~ ped(RRID) + ide(RRID),
+                        data = recsumm.m,
+                        ginverse =  list(RRID = ainv),
+                        na.method.X = "omit", na.omit.Y = "na.omit",
+                        workspace = 500e+6, pworkspace = 500e+6)
 
 grm.summ.RR.f <- asreml(fixed = TotalRecombCount ~ TotalInfLoci,
                         random = ~ ped(RRID) + ide(RRID),

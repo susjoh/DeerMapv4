@@ -7,7 +7,7 @@ library(reshape)
 
 
 #load("eddie/6_run5_Deer_Data_for_Eddie_a.RData")
-load("6_run5_Deer_Data_for_Eddie_a.RData")
+load("flipstest/6_run5_Deer_Data_for_Eddie_a.RData")
 #reruns <- read.table("6_Reruns_2.txt", header = T)
 
 

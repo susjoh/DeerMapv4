@@ -99,9 +99,26 @@ flat.test <- subset(flat.test, !is.na(value))
 
 head(flat.test)
 
+head(x.map)
+
+x <- tapply(x.map$CEL.order, x.map$chunk, max)
+x <- data.frame(x)
+x$x <- x$x + 0.3
+
 ggplot(flat.test, aes(X1.Order, X2.Order, fill = value)) +
+  geom_vline(xintercept = x$x, linetype = "dashed", colour = "grey30") +
+  geom_hline(yintercept = x$x, linetype = "dashed", colour = "grey30") +
   geom_tile() +
-  scale_fill_gradient(low = "white", high = "red")
+  scale_fill_gradient(low = "white", high = "red") +
+  theme(axis.text.x  = element_text (size = 12),
+      axis.text.y  = element_text (size = 12),
+      strip.text.x = element_text (size = 12),
+      axis.title.y = element_text (size = 14, angle = 90),
+      axis.title.x = element_text (size = 14),
+      strip.background = element_blank()) +
+  labs(x = "Run 2 Map Order", y = "Run 2 Map Order", fill = "Adj R2")
+  
+ggsave("figs/X_LD_before_Rearranging.png", width = 6, height = 6, device = "png")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -399,4 +416,3 @@ mapdata <- subset(mapdata, SNP.Name != bad.chunk.snp)
 
 write.table(mapdata, paste0("results/3_Linkage_Map_Positions_CEL.order_", AnalysisSuffix, ".txt"),
             row.names = F, quote = F, sep = "\t")
-s

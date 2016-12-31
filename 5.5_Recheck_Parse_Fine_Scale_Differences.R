@@ -187,5 +187,17 @@ ggplot(subset(fullmap, CEL.LG == 34), aes(CEL.order, cMPosition.run4)) +
   geom_point() +
   facet_wrap(~Chr, scales= "free")
 
-write.table(fullmap, paste0("results/5_Linkage_Map_Positions_CEL_run4_", AnalysisSuffix, ".txt"), row.names = F, quote = F, sep = "\t")
 
+# x <- read.table("results/5_Linkage_Map_Positions_CEL_run4_a.txt", header = T)
+# head(x)
+# x <- subset(x, CEL.LG != 34)
+# x <- rbind(x, fullmap)
+# 
+# "cela1_red_x_91610613" %in% x$SNP.Name
+# 
+# 
+# write.table(x, paste0("results/5_Linkage_Map_Positions_CEL_run4_", AnalysisSuffix, ".txt"), row.names = F, quote = F, sep = "\t")
+
+
+
+write.table(fullmap, paste0("results/5_Linkage_Map_Positions_CEL_run4_", AnalysisSuffix, ".txt"), row.names = F, quote = F, sep = "\t")

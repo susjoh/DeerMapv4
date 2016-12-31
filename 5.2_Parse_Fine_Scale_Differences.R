@@ -97,7 +97,6 @@ doub.chunk <- data.frame(table(edit.tab$chunk))
 doub.chunk <- subset(doub.chunk, Freq > 1)
 
 edit.tab <- edit.tab[-which(edit.tab$chunk %in% doub.chunk$Var1 & edit.tab$edit == "del"),]
-
 head(mapdata)
 
 #~~ create mapdata for LGs that were fine
@@ -192,6 +191,8 @@ ggsave(filename = paste0("figs/Linkage_Map_run4_", AnalysisSuffix, ".png"), devi
 ggplot(subset(fullmap, CEL.LG == 34), aes(CEL.order, cMPosition.run4)) +
   geom_point() +
   facet_wrap(~Chr, scales= "free")
+
+
 
 write.table(fullmap, paste0("results/5_Linkage_Map_Positions_CEL_run4_", AnalysisSuffix, ".txt"), row.names = F, quote = F, sep = "\t")
 

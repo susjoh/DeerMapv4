@@ -101,7 +101,7 @@ ggsave("figs/LinkageMapRun4.png", width = 10, height = 14, device = "png")
 
 #~~ Run 5
 
-run5 <- read.table("results/6_Linkage_Map_Positions_CEL_run5_reorient_a.txt", header = T)
+run5 <- read.table("results/8_Linkage_Map_Positions_CEL_run5_dumpos_a.txt", header = T)
 
 head(run5)
 run5$CEL.LG.lab <- paste0("CEL", run5$CEL.LG)
@@ -257,10 +257,14 @@ x.map2$SNP.Type <- ifelse(x.map2$SNP.Name %in% pseudoautoSNPs, "PAR", "Sex-linke
 
 # temp <- subset(x.map2, SNP.Name %in% pseudoautoSNPs)
 
+x.map2$chunk[is.na(x.map2$chunk)] <- 0
+
+colourpal <- c("#000000", "#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf","#999999")
+
 ggplot(x.map2, aes(variable, value, group = SNP.Name, col = factor(chunk))) +
   geom_line(alpha = 0.1) +
   geom_point() +
-  scale_color_brewer(palette = "Set1") +
+  scale_color_manual(values = colourpal) +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
         strip.text.x = element_text (size = 12),
@@ -280,7 +284,7 @@ ggsave("figs/X_CEL_vs_BTA.png", width = 6, height = 8, device = "png")
 # Overall length                              #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-max.vals <- read.table("results/6_Predicted_Physical_Size_run5_a.txt", header = T)
+max.vals <- read.table("results/8_Predicted_Physical_Size_run5_a.txt", header = T)
 max.vals$CEL.LG2 <- max.vals$CEL.LG
 max.vals$CEL.LG2[34]<- "X"
 
@@ -299,7 +303,7 @@ ggplot(max.vals, aes(Est.Length/1e6, max.cM)) +
 
 summary(lm(Est.Length ~ max.cM, data = max.vals))
 
-ggsave("figs/ChromosomeSizeVsMapLength", width = 6, height = 5, device = "png")
+ggsave("figs/ChromosomeSizeVsMapLength.png", width = 6, height = 5, device = "png")
 
 max.vals.sex <- melt(subset(max.vals, select = c(CEL.LG2, Est.Length, max.cM.male, max.cM.female)),
                      id.vars = c("CEL.LG2", "Est.Length"))
@@ -327,6 +331,14 @@ ggplot(max.vals.sex, aes(Est.Length/1e6, value, colour = variable)) +
 
 ggsave("figs/ChromosomeSizeVsMapLengthBySex", width = 6, height = 5, device = "png")
 
+head(max.vals)
+max.vals$BTA = c(15, 29, 5, 18, "17, 19", 6, 23, 2, 7, 25, 11, 10, 21, 16,
+                 "26, 28", 8, 6, 4, 1, 3, 14, 5, 13, 22, 20, 9, 24, 9, 8, 12, 1, 27, 2, "X")
+
+max.tab <- subset(max.vals, select = c(CEL.LG, BTA, LocusCount, Est.Length, max.cM, max.cM.male, max.cM.female))
+#max.tab$Notes <- NA
+
+#max.tab$Notes[which(max.tab$CEL.LG == 2)] <- c("Fission from CEL22 in deer lineage")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #~~ Linkage disequilibrium                 #
@@ -431,7 +443,7 @@ beepr::beep()
 #~~ Double crossovers                      #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-dbxtab <- read.table("results/6_Double_Xovers_raw_a.txt", header = T)
+dbxtab <- read.table("results/6_Double_Xovers_raw_a_rebuild.txt", header = T)
 head(dbxtab)
 
 dbxtab <- subset(dbxtab, Type == "Mid")
@@ -453,7 +465,7 @@ ggsave("figs/DoubleCrossovers.png", width = 6, height = 5, device = "png")
 
 singtab <- subset(dbxtab, Singleton == "yes")
 
-dbx.rec <- read.table("results/6_Per_Chromosome_Recomb_dbx_a.txt", header = T, stringsAsFactors = F)
+dbx.rec <- read.table("results/8_Per_Chromosome_Recomb_final_a.txt", header = T, stringsAsFactors = F)
 library(crimaptools)
 
 distab <- subset(dbx.rec, select = c(Family, RRID, 
@@ -517,7 +529,7 @@ head(snpinfo)
 
 infloci <- NULL
 for(i in 1:34){
-  x <- crimaptools::parse_loc(paste0("crimap/crimap_a_cel/chr", i, "a_cel_dbx.loc"))
+  x <- crimaptools::parse_loc(paste0("crimap/crimap_a_cel_rebuild/chr", i, "_dbx.loc"))
   x$CEL.LG <- i
   infloci <- rbind(infloci, x)
   rm(x)
@@ -538,11 +550,28 @@ infmelt$variable[which(infmelt$variable == "tot_f")] <- "Female"
 infmelt <- infmelt[-which(infmelt$CEL.LG == 34 & infmelt$variable == "Male" & !infmelt$SNP.Name %in% pseudoautoSNPs),]
 
 
+infmelt$CEL.LG2 <- gsub(34, "X", infmelt$CEL.LG)
+
 
 ggplot(infmelt, aes(factor(CEL.LG), value, colour = variable)) +
   geom_boxplot() +
   scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~variable)
+  facet_wrap(~variable) +
+  scale_x_discrete(breaks = c(1:34), labels = c(1, "", 3, "", 5, "", 7, "", 9, "",
+                                                11, "", "", 14, "", "", 17, "", "", 20,
+                                                "", "", 23, "", "", 26, "", "", 29, "",
+                                                "", 32, "", "X")) +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank(),
+        legend.position = "none") +
+  labs(x = "Chromosome",
+       y = "Number of Informative Loci")
+
+ggsave("figs/Informative_Loci_Chr_by_Sex.png", width = 10, height = 5, device = "png")
 
 
 head(infloci)
@@ -555,7 +584,7 @@ ggplot(infloci, aes(Q.2, inf.mei)) + geom_point(alpha = 0.2) + stat_smooth()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 
-load("flipstest/6_run5_Deer_Data_for_Eddie_a.RData", verbose = T)
+load("flipstest/8_run5_Deer_Data_for_Eddie_a.RData", verbose = T)
 
 head(mapdata)
 sum(table(table(mapdata$chunk)))
@@ -589,7 +618,7 @@ head(run5)
 #~~~~~~~~~~~~~~~~~ Make Final Table
 
 finalmap <- run5
-finalmap <- subset(finalmap, select = -c(Order, analysisID, Chr, chunk, cMdiff, r, cMdiff.Female, Female.r, Male.r, cMdiff.Male, CEL.LG.lab))
+finalmap <- subset(finalmap, select = -c(cMdiff, r, cMdiff.Female, Female.r, Male.r, cMdiff.Male, CEL.LG.lab))
 head(finalmap)
 finalmap$Skeleton.SNP <- ifelse(finalmap$SNP.Name %in% skel.map$SNP.Name, "yes", "no")
 

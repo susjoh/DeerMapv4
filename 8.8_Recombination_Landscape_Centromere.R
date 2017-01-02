@@ -145,7 +145,8 @@ ggplot(bin.tab.sex, aes(Window*(window.size/1e6), value, colour = variable)) +
         axis.title.x = element_text (size = 14),
         strip.background = element_blank()) +
   labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)")
+       y = "Recombination rate (cM/Mb)",
+       colour = "Sex")
 
 ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.png"), width = 10, height = 14, device = "png")
 
@@ -162,29 +163,29 @@ head(bin.tab)
 
 tapply(bin.tab$Window, bin.tab$CEL.LG, max)
 
-ggplot(subset(bin.tab, Window <= 20), aes(Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Window <= 20), aes(Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Window <= 20), aes(Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 20), aes(Reverse.Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 20), aes(Reverse.Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 20), aes(Reverse.Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
 
-ggplot(subset(bin.tab.sex, Window <= 20), aes(Window*(window.size/1e6), Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
-ggplot(subset(bin.tab.sex, Reverse.Window <= 20), aes(Reverse.Window*(window.size/1e6),  Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
+ggplot(subset(bin.tab.sex, Window <= 15), aes(Window*(window.size/1e6), Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
+ggplot(subset(bin.tab.sex, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6),  Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
 
 x1 <- subset(bin.tab.sex, select = -c(Reverse.Window))
 x2 <- subset(bin.tab.sex, select = -c(Window))
 names(x2)[2] <- "Window"
 
-bin.tab.sex.centro <- rbind(cbind(x1, variable = "Centromere Absent"),
-                            cbind(x2, variable = "Centromere Present"))
+bin.tab.sex.centro <- rbind(cbind(x1, variable = "Centromere Present"),
+                            cbind(x2, variable = "Centromere Absent"))
 
 bin.tab.sex.centro$variable <- paste(bin.tab.sex.centro$Sex, bin.tab.sex.centro$variable)
 head(bin.tab.sex.centro)
 
 
 
-ggplot(subset(bin.tab.sex.centro, Window <= 20 & CEL.LG != 34), aes(Window*(window.size/1e6), Recomb.Rate, colour = variable)) +
+ggplot(subset(bin.tab.sex.centro, Window <= 15 & CEL.LG != 34), aes(Window*(window.size/1e6), Recomb.Rate, colour = variable)) +
   geom_point(alpha = 0.4) +
   stat_smooth() +
   scale_color_brewer(palette = "Set1") +

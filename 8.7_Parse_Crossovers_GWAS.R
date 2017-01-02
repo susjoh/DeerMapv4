@@ -45,7 +45,7 @@ famped <- read.table(paste0("results/2_FamilyPedigree_afterQC_", AnalysisSuffix,
 
 #~~ Read & format linkage map data
 
-mapdata <- read.table(paste0("results/4_Linkage_Map_Positions_CEL_run3_", AnalysisSuffix, ".txt"),
+mapdata <- read.table(paste0("results/8_Linkage_Map_Positions_CEL_run5_dumpos_", AnalysisSuffix, ".txt"),
                       header = T, stringsAsFactors = F)
 
 #mapdata <- arrange(mapdata, CEL.LG, cMPosition.run3)
@@ -58,7 +58,9 @@ analysis.vec <- unique(mapdata$analysisID)
 
 firstRun = FALSE
 
-rectab <- read.table("results/8_Per_Chromosome_Recomb.txt", header = T)
+rectab <- read.table("results/8_Per_Chromosome_Recomb_final_a.txt", header = T)
+rectab.sex <- subset(rectab, analysisID == "34_dbx")
+rectab     <- subset(rectab, analysisID != "34_dbx")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 3. Calculate the total autosomal recombination rate #
@@ -80,6 +82,7 @@ recsumm$id <- recsumm$RRID
 
 ggplot(recsumm, aes(TotalRecombCount)) + geom_histogram(binwidth = 1)
 ggplot(recsumm, aes(TotalInfLoci, TotalRecombCount)) + geom_point() + stat_smooth()
+ggplot(rectab, aes(RecombCount)) + geom_histogram(binwidth = 1)
 
 
 write.table(recsumm, "results/8_Per_ID_Recomb.txt", row.names = F, sep = "\t", quote = F)
@@ -101,6 +104,8 @@ head(recsumm)
 
 recsumm.m <- droplevels(subset(recsumm, RRID.Sex == "M"))
 recsumm.f <- droplevels(subset(recsumm, RRID.Sex == "F"))
+
+library(RepeatABEL)
 
 gwas.all <- rGLS(TotalRecombCount ~ TotalInfLoci + RRID.Sex, genabel.data = abeldata, phenotype.data = recsumm)
 gwas.m <- rGLS(TotalRecombCount ~ TotalInfLoci, genabel.data = abeldata, phenotype.data = recsumm.m)

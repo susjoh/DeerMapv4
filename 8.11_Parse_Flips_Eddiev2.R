@@ -55,7 +55,7 @@ rm(flips.temp, i)
 # 1. Extract Data from the Eddie Run       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-# if(parseFlipsRun == TRUE){
+if(parseFlipsRun == TRUE){
 
   for(h in 1:nrow(flips.tab)){
     
@@ -179,4 +179,4 @@ rm(flips.temp, i)
   
 } 
 
-
+subset(map.stats.final, Min.Li < -2)

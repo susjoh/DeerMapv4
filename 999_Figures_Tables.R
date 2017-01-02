@@ -221,6 +221,8 @@ for(i in 2:nrow(x.map)){
 }
 x.map$SNP.Type <- ifelse(x.map$SNP.Name %in% pseudoautoSNPs, "PAR", "Sex-linked")
 
+head(x.map)
+
 ggplot(x.map, aes(Order, cMPosition, col = factor(chunk))) +
   geom_point() +
   scale_color_brewer(palette = "Set1") +
@@ -239,6 +241,7 @@ ggsave("figs/X_chromosome_chunks.png", width = 6, height = 5, device = "png")
 x.map.hold <- x.map
 
 #~~ How does it relate to the bovine genome?
+
 
 x.map <- subset(run5, CEL.LG == 34)
 head(x.map)
@@ -278,6 +281,62 @@ ggplot(x.map2, aes(variable, value, group = SNP.Name, col = factor(chunk))) +
   
 
 ggsave("figs/X_CEL_vs_BTA.png", width = 6, height = 8, device = "png")
+
+
+#~~~~~~~~~~~~~~~~#
+# Compare with BTA 4
+#~~~~~~~~~~~~~~~~#
+
+# blastres <- read.table("../Genome Sequences/3_BLASTResults.txt", header = T)
+# head(bta.4)
+# 
+# bta.4 <- subset(blastres, Species == "Bos")
+# bta.4 <- subset(bta.4, select = c(Locus_Name, ChrStart, Chr))
+# names(bta.4) <- c("SNP.Name", "BTA4Position", "BTA4Chr")
+# 
+# 
+# x.map <- subset(run5, CEL.LG == 34)
+# head(x.map)
+# x.map <- join(x.map, bta.4)
+# 
+# x.map$newbovmap <- x.map$BTA4Position/1e6
+# 
+# x.map2 <- melt(subset(x.map, select = c(SNP.Name, cMPosition.run5, newbovmap)), id.vars = "SNP.Name")
+# tail(x.map2)
+# x.map2$variable <- as.character(x.map2$variable)
+# 
+# x.map2$variable[which(x.map2$variable == "cMPosition.run5")] <- "Deer Position (cM)"
+# x.map2$variable[which(x.map2$variable == "newbovmap")] <- "Cattle Position (Mb)"
+# 
+# x.map2 <- join(x.map2, subset(x.map.hold, select = c(SNP.Name, chunk)))
+# x.map2$SNP.Type <- ifelse(x.map2$SNP.Name %in% pseudoautoSNPs, "PAR", "Sex-linked")
+# 
+# # temp <- subset(x.map2, SNP.Name %in% pseudoautoSNPs)
+# 
+# x.map2$chunk[is.na(x.map2$chunk)] <- 0
+# 
+# colourpal <- c("#000000", "#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#ffff33","#a65628","#f781bf","#999999")
+# 
+# ggplot(x.map2, aes(variable, value, group = SNP.Name, col = factor(chunk))) +
+#   geom_line(alpha = 0.1) +
+#   geom_point() +
+#   scale_color_manual(values = colourpal) +
+#   theme(axis.text.x  = element_text (size = 12),
+#         axis.text.y  = element_text (size = 12),
+#         strip.text.x = element_text (size = 12),
+#         axis.title.y = element_text (size = 14, angle = 90),
+#         axis.title.x = element_text (size = 14),
+#         strip.background = element_blank()) +
+#   labs(x = "Map",
+#        y = "Map Length (cM or Mb)",
+#        colour = "Chunk") +
+#   coord_cartesian(xlim = c(1.3, 1.7))
+# 
+# 
+# ggsave("figs/X_CEL_vs_BTA4.png", width = 6, height = 8, device = "png")
+# 
+# hist(subset(bta.4, BTA4Chr == "X")$BTA4Position)
+
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -331,14 +390,24 @@ ggplot(max.vals.sex, aes(Est.Length/1e6, value, colour = variable)) +
 
 ggsave("figs/ChromosomeSizeVsMapLengthBySex", width = 6, height = 5, device = "png")
 
-head(max.vals)
-max.vals$BTA = c(15, 29, 5, 18, "17, 19", 6, 23, 2, 7, 25, 11, 10, 21, 16,
-                 "26, 28", 8, 6, 4, 1, 3, 14, 5, 13, 22, 20, 9, 24, 9, 8, 12, 1, 27, 2, "X")
+max.vals$RR <- max.vals$max.cM/max.vals$Est.Length
+max.vals$RR.f <- max.vals$max.cM.female/max.vals$Est.Length
+max.vals$RR.m <- max.vals$max.cM.male/max.vals$Est.Length
 
-max.tab <- subset(max.vals, select = c(CEL.LG, BTA, LocusCount, Est.Length, max.cM, max.cM.male, max.cM.female))
-#max.tab$Notes <- NA
+# ggplot(max.vals, aes(Est.Length/1e6, RR)) +
+#   stat_smooth(formula = y ~ 1/x) +
+#   geom_text(aes(label = CEL.LG2)) +
+#   scale_color_brewer(palette = "Set1") +
+#   theme(axis.text.x  = element_text (size = 12),
+#         axis.text.y  = element_text (size = 12),
+#         strip.text.x = element_text (size = 12),
+#         axis.title.y = element_text (size = 14, angle = 90),
+#         axis.title.x = element_text (size = 14),
+#         strip.background = element_blank()) +
+#   labs(x = "Estimated chromosome size (MB)",
+#        y = "Recombination Rate (cM/Mb)")
+# 
 
-#max.tab$Notes[which(max.tab$CEL.LG == 2)] <- c("Fission from CEL22 in deer lineage")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #~~ Linkage disequilibrium                 #

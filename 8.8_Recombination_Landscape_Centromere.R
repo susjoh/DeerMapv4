@@ -12,7 +12,7 @@ mapdata$Dummy.Position <- mapdata$Dummy.Position - mean(tapply(mapdata$Dummy.Pos
 
 #~~ Set the bin size
 
-window.size <- 2e6
+window.size <- 1e6
 
 #~~ Create a table to save information
 
@@ -111,9 +111,34 @@ for(i in 1:nrow(bin.tab)){
 
 head(bin.tab)
 
+bin.tab$MaleFemale <- bin.tab$cM.Male - bin.tab$cM.Female
+
 ggplot(bin.tab, aes(Window, cM       )) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
 ggplot(bin.tab, aes(Window, cM.Male  )) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
 ggplot(bin.tab, aes(Window, cM.Female)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
+ggplot(bin.tab, aes(Window, MaleFemale)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
+
+bin.tab$CEL.LG.lab <- paste0("CEL", bin.tab$CEL.LG)
+
+ggplot(bin.tab, aes(Window*(window.size/1e6), MaleFemale)) +
+  geom_point(alpha = 0.8) +
+  stat_smooth() +
+  scale_colour_brewer(palette = "Set1") +
+  facet_wrap(~CEL.LG.lab, ncol = 5, scales = "free_x") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Estimated base pair position (Mb)",
+       y = "Male - Female Recombination Rate (cM/Mb)",
+       colour = "Sex")
+
+ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_Mb_sex_diff.png"), width = 10, height = 14, device = "png")
+
+
+
 
 
 bin.tab$Reverse.Window <- NA
@@ -134,7 +159,7 @@ bin.tab.sex$CEL.LG.lab <- paste0("CEL", bin.tab.sex$CEL.LG)
 bin.tab.sex$CEL.LG.lab <- factor(bin.tab.sex$CEL.LG.lab, levels = paste0("CEL", 1:34))
 
 ggplot(bin.tab.sex, aes(Window*(window.size/1e6), value, colour = variable)) +
-  geom_point(alpha = 0.8) +
+  #geom_point(alpha = 0) +
   stat_smooth() +
   scale_colour_brewer(palette = "Set1") +
   facet_wrap(~CEL.LG.lab, ncol = 5, scales = "free_x") +
@@ -153,6 +178,29 @@ ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.png"), wi
 bin.tab.sex$CEL.LG.lab <- NULL
 names(bin.tab.sex) <- c("CEL.LG", "Window", "Reverse.Window", "Sex", "Recomb.Rate")
 
+head(bin.tab.sex)
+bin.tab.sex$ChromosomeProportion <- NA
+
+for(i in 1:34){
+  bin.tab.sex$ChromosomeProportion[which(bin.tab.sex$CEL.LG == i)] <- bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)]/max(bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)])
+}
+
+ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
+  #geom_point(alpha = 0) +
+  stat_smooth() +
+  scale_colour_brewer(palette = "Set1") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Relative Chromosomal Position",
+       y = "Recombination rate (cM/Mb)",
+       colour = "Sex")
+
+ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
+
 
 write.table(bin.tab, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb.txt"), row.names = F, sep = "\t", quote = F)
 write.table(bin.tab.sex, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.txt"), row.names = F, sep = "\t", quote = F)
@@ -163,15 +211,17 @@ head(bin.tab)
 
 tapply(bin.tab$Window, bin.tab$CEL.LG, max)
 
-ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Window <= 15), aes(Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
-ggplot(subset(bin.tab, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 25), aes(Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 25), aes(Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Window <= 25), aes(Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 25), aes(Reverse.Window*(window.size/1e6), cM)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 25), aes(Reverse.Window*(window.size/1e6), cM.Male)) + geom_point() + stat_smooth()
+ggplot(subset(bin.tab, Reverse.Window <= 25), aes(Reverse.Window*(window.size/1e6), cM.Female)) + geom_point() + stat_smooth()
 
-ggplot(subset(bin.tab.sex, Window <= 15), aes(Window*(window.size/1e6), Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
-ggplot(subset(bin.tab.sex, Reverse.Window <= 15), aes(Reverse.Window*(window.size/1e6),  Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
+head(bin.tab)
+
+ggplot(subset(bin.tab.sex, Window <= 25), aes(Window*(window.size/1e6), Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
+ggplot(subset(bin.tab.sex, Reverse.Window <= 25), aes(Reverse.Window*(window.size/1e6),  Recomb.Rate, colour = Sex)) + geom_point(alpha = 0.5) + stat_smooth() + scale_color_brewer(palette = "Set1")
 
 x1 <- subset(bin.tab.sex, select = -c(Reverse.Window))
 x2 <- subset(bin.tab.sex, select = -c(Window))
@@ -185,8 +235,8 @@ head(bin.tab.sex.centro)
 
 
 
-ggplot(subset(bin.tab.sex.centro, Window <= 15 & CEL.LG != 34), aes(Window*(window.size/1e6), Recomb.Rate, colour = variable)) +
-  geom_point(alpha = 0.4) +
+ggplot(subset(bin.tab.sex.centro, Window <= 25 & CEL.LG != 34), aes(Window*(window.size/1e6), Recomb.Rate, colour = variable)) +
+  geom_point(alpha = 0.1) +
   stat_smooth() +
   scale_color_brewer(palette = "Set1") +
   theme(axis.text.x  = element_text (size = 12),
@@ -197,7 +247,8 @@ ggplot(subset(bin.tab.sex.centro, Window <= 15 & CEL.LG != 34), aes(Window*(wind
         strip.background = element_blank(),
         legend.position = "top",
         legend.direction = "vertical") +
-  labs(x = "Estimated base pair position (Mb)",
+  guides(col=guide_legend(nrow=2)) +
+  labs(x = "Distance from chromosome end (Mb)",
        y = "Recombination rate (cM/Mb)",
        colour = "")
 

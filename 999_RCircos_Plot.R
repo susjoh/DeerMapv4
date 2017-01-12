@@ -89,7 +89,10 @@ rcircos.params$chrom.paddings <- 1
 RCircos.Reset.Plot.Parameters(new.params = rcircos.params)
 RCircos.List.Parameters();
 
-pdf(file="figs/Circos_Plot_2000_sampled.pdf", height=8, width=8);
+# pdf(file="figs/Circos_Plot_2000_sampled.pdf", height=8, width=8);
+
+png(file="figs/Circos_Plot_2000_sampled.png", units = "in", res = 300, height=8, width=8);
+
 
 RCircos.Set.Core.Components(max.tab, NULL, 0, 0)
 RCircos.Set.Plot.Area()

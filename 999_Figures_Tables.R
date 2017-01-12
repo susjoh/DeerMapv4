@@ -187,7 +187,7 @@ ggplot(sex.map, aes(CEL.order, value, col = variable)) +
   geom_point() +
   facet_wrap(~CEL.LG, ncol = 5, scales = "free") +
   scale_color_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
+  theme(axis.text.x  = element_text (size = 10),
         axis.text.y  = element_text (size = 12),
         strip.text.x = element_text (size = 12),
         axis.title.y = element_text (size = 14, angle = 90),
@@ -222,6 +222,8 @@ for(i in 2:nrow(x.map)){
 x.map$SNP.Type <- ifelse(x.map$SNP.Name %in% pseudoautoSNPs, "PAR", "Sex-linked")
 
 head(x.map)
+
+write.table(x.map, "../Genome Sequences/x_chunks.txt", row.names = F, sep = "\t", quote = F)
 
 ggplot(x.map, aes(Order, cMPosition, col = factor(chunk))) +
   geom_point() +
@@ -364,6 +366,23 @@ summary(lm(Est.Length ~ max.cM, data = max.vals))
 
 ggsave("figs/ChromosomeSizeVsMapLength.png", width = 6, height = 5, device = "png")
 
+
+ggplot(max.vals, aes(Est.Length/1e6, max.cM/Est.Length)) +
+  stat_smooth(method = "lm") +
+  geom_text(aes(label = CEL.LG2)) +
+  scale_color_brewer(palette = "Set1") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Estimated chromosome size (MB)",
+       y = "Linkage Map Length (cM)")
+
+
+
+
 max.vals.sex <- melt(subset(max.vals, select = c(CEL.LG2, Est.Length, max.cM.male, max.cM.female)),
                      id.vars = c("CEL.LG2", "Est.Length"))
 max.vals.sex$variable <- as.character(max.vals.sex$variable)
@@ -383,7 +402,8 @@ ggplot(max.vals.sex, aes(Est.Length/1e6, value, colour = variable)) +
         strip.text.x = element_text (size = 12),
         axis.title.y = element_text (size = 14, angle = 90),
         axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
+        strip.background = element_blank(),
+        legend.position = "top") +
   labs(x = "Estimated chromosome size (MB)",
        y = "Linkage Map Length (cM)",
        colour = "Sex")
@@ -407,6 +427,85 @@ max.vals$RR.m <- max.vals$max.cM.male/max.vals$Est.Length
 #   labs(x = "Estimated chromosome size (MB)",
 #        y = "Recombination Rate (cM/Mb)")
 # 
+
+max.vals
+
+
+fit.a <- summary(lm(max.cM ~ Est.Length, data = max.vals))
+fit.b <- summary(lm(I(Est.Length/max.cM) ~ I(1/max.cM), data = max.vals))
+fit.c <- summary(lm(max.cM.female ~ max.cM.male, data = subset(max.vals, CEL.LG != 34)))
+
+fit.a$adj.r.squared
+fit.a$coefficients[2,4]
+
+fit.b$adj.r.squared
+fit.b$coefficients[2,4]
+
+fit.c$adj.r.squared
+fit.c$coefficients[2,4]
+
+pdf("figs/Broad_scale_recomb.pdf", width = 5.4, height = 2.5) 
+
+
+multiplot(
+  ggplot(max.vals, aes(Est.Length/1e6, max.cM)) +
+    stat_smooth(method = "lm") +
+    geom_text(aes(label = CEL.LG2), size = 2) +
+    scale_color_brewer(palette = "Set1") +
+    #theme_bw() +
+    theme(axis.text.x  = element_text (size = 6),
+          axis.text.y  = element_text (size = 6),
+          strip.text.x = element_text (size = 6),
+          axis.title.y = element_text (size = 8, angle = 90),
+          axis.title.x = element_text (size = 8),
+          plot.title = element_text(size = 8, hjust = 0),
+          strip.background = element_blank()) +
+    ggtitle("A") + 
+    labs(x = "Estimated chromosome size (MB)",
+         y = "Linkage Map Length (cM)")
+  
+  ,
+  
+  ggplot(max.vals, aes(Est.Length/1e6, max.cM/Est.Length*1e6)) +
+    stat_smooth(method = "lm", formula = y ~ I(1/x)) +
+    geom_text(aes(label = CEL.LG2), size = 2) +
+    scale_color_brewer(palette = "Set1") +
+    #theme_bw() +
+    theme(axis.text.x  = element_text (size = 6),
+          axis.text.y  = element_text (size = 6),
+          strip.text.x = element_text (size = 6),
+          axis.title.y = element_text (size = 8, angle = 90),
+          axis.title.x = element_text (size = 8),
+          plot.title = element_text(size = 8, hjust = 0),
+          strip.background = element_blank()) +
+    ggtitle("B") + 
+    labs(x = "Estimated chromosome size (MB)",
+         y = "Recombination Rate (cM/Mb)")
+
+
+  
+  ,
+  
+  cols = 2)
+
+dev.off()
+
+
+
+ggplot(subset(max.vals, CEL.LG != 34), aes(max.cM.male, max.cM.female)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  stat_smooth(method = "lm") +
+  geom_text(aes(label = CEL.LG2)) +
+  #theme_bw() +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Male Linkage Map Length (cM)", y = "Female Linkage Map Length (cM)")
+
+ggsave("figs/Male_Female_Linkage_map.png", width = 6, height = 5, device = "png")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

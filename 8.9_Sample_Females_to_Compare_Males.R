@@ -206,11 +206,11 @@ x <- subset(max.vals, select = c(CEL.LG, Est.Length,  max.cM.female))
 x$Iteration <- "Map"
 
 
-Plot1 <- ggplot(subset(samp.res, CEL.LG != 34), aes(Est.Length/1e6, max.cM, col = factor(Iteration))) +
+Plot1 <- ggplot(samp.res, aes(Est.Length/1e6, max.cM, col = factor(Iteration))) +
   stat_smooth(method = "lm") +
   geom_point(alpha = 0.6) +
-  geom_point(data = subset(x, CEL.LG != 34), aes(Est.Length/1e6, max.cM.female), col = "black") +
-  stat_smooth(data = subset(x, CEL.LG != 34), method = "lm", aes(Est.Length/1e6, max.cM.female), col = "black") +
+  geom_point(x, aes(Est.Length/1e6, max.cM.female), col = "black") +
+  stat_smooth(x, method = "lm", aes(Est.Length/1e6, max.cM.female), col = "black") +
   theme(axis.text.x  = element_text (size = 12),
       axis.text.y  = element_text (size = 12),
       strip.text.x = element_text (size = 12),
@@ -219,7 +219,8 @@ Plot1 <- ggplot(subset(samp.res, CEL.LG != 34), aes(Est.Length/1e6, max.cM, col 
       strip.background = element_blank()) +
   labs(x = "Predicted Physical Position (Mb)",
        y = "Linkage Map Length (cM)",
-       colour = "Iteration")
+       colour = "Iteration") +
+  ggtitle("A. Female Map Lengths")
   
 ggsave("figs/Sampled_Female_Maps.png", width = 6, height = 5, device = "png")
 
@@ -234,10 +235,10 @@ samp.res.male <- join(samp.res.male, max.vals[,c("CEL.LG", "Est.Length")])
 x <- subset(max.vals, select = c(CEL.LG, Est.Length, max.cM.male))
 x$Iteration <- "Map"
 
-Plot2 <- ggplot(subset(samp.res.male, CEL.LG != 34), aes(Est.Length/1e6, max.cM, col = factor(Iteration))) +
-  stat_smooth(method = "lm") +
+Plot2 <- ggplot(samp.res.male, aes(Est.Length/1e6, max.cM, col = factor(Iteration))) +
+  stat_smooth(data = subset(samp.res.male, CEL.LG != 34), aes(Est.Length/1e6, max.cM, col = factor(Iteration)), method = "lm") +
   geom_point(alpha = 0.6) +
-  geom_point(data = subset(x, CEL.LG != 34), aes(Est.Length/1e6, max.cM.male), col = "black") +
+  geom_point(data = x, aes(Est.Length/1e6, max.cM.male), col = "black") +
   stat_smooth(data = subset(x, CEL.LG != 34), method = "lm", aes(Est.Length/1e6, max.cM.male), col = "black") +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
@@ -247,7 +248,9 @@ Plot2 <- ggplot(subset(samp.res.male, CEL.LG != 34), aes(Est.Length/1e6, max.cM,
         strip.background = element_blank()) +
   labs(x = "Predicted Physical Position (Mb)",
        y = "Linkage Map Length (cM)",
-       colour = "Iteration")
+       colour = "Iteration")+
+  ggtitle("B. Male Map Lengths")
+
 
 ggsave("figs/Sampled_Male_Maps.png", width = 6, height = 5, device = "png")
 
@@ -260,7 +263,7 @@ source("r/multiplot.R")
 
 
 
-pdf("figs/Male_Female_Map_Sampling.pdf", width = 10, height = 4.5) 
+png("figs/Male_Female_Map_Sampling.png", width = 10, height = 4.5, units = "in", res = 300) 
 
 multiplot(Plot1, Plot2, cols = 2)
 

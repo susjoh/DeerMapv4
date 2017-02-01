@@ -149,7 +149,18 @@ for(i in (nrow(bin.tab) - 1):1) bin.tab$Reverse.Window[i] <- ifelse(bin.tab$CEL.
 head(bin.tab)
 tail(bin.tab)
 
+
+ggplot(bin.tab, aes(Window, Locus.Count)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
+
+ggplot(bin.tab, aes(Locus.Count,  cM)) + geom_point() + stat_smooth(method = "lm")
+ggplot(subset(bin.tab, Window <= 30), aes(Locus.Count,  Window)) + geom_point(alpha = 0.1) + stat_smooth(method = "lm")
+
+summary(lm(cM ~ Locus.Count, data = bin.tab))
+
+
 library(reshape)
+
+#~~ Prepare the data
 
 bin.tab.sex <- melt(subset(bin.tab, select = c(CEL.LG, Window, Reverse.Window, cM.Male, cM.Female)), id.vars = c("CEL.LG", "Window", "Reverse.Window"))
 head(bin.tab.sex)
@@ -158,11 +169,47 @@ bin.tab.sex$variable <- gsub("cM.", "", bin.tab.sex$variable, fixed = T)
 bin.tab.sex$CEL.LG.lab <- paste0("CEL", bin.tab.sex$CEL.LG)
 bin.tab.sex$CEL.LG.lab <- factor(bin.tab.sex$CEL.LG.lab, levels = paste0("CEL", 1:34))
 
-ggplot(bin.tab.sex, aes(Window*(window.size/1e6), value, colour = variable)) +
-  #geom_point(alpha = 0) +
-  stat_smooth() +
+
+#bin.tab.sex$CEL.LG.lab <- NULL
+names(bin.tab.sex) <- c("CEL.LG", "Window", "Reverse.Window", "Sex", "Recomb.Rate", "CEL.LG.lab")
+
+bin.tab.sex$Recomb.Rate <- bin.tab.sex$Recomb.Rate * 1e6/window.size
+head(bin.tab.sex)
+bin.tab.sex$ChromosomeProportion <- NA
+
+for(i in 1:34){
+  bin.tab.sex$ChromosomeProportion[which(bin.tab.sex$CEL.LG == i)] <- bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)]/max(bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)])
+}
+
+bin.tab.sex$NewBin <- .bincode(bin.tab.sex$ChromosomeProportion, breaks = seq(0, 1, 0.01)) 
+
+bin.tab.sex$Fission <- ifelse(bin.tab.sex$CEL.LG %in% c(6, 8, 16, 19, 22, 26), "Fission, New Centromere (6, 8, 16, 19, 22, 26)",
+                              ifelse(bin.tab.sex$CEL.LG %in% c(17, 33, 29, 31, 3, 28), "Fission, Old Centromere (3, 17, 28, 29, 31, 33)",
+                                     ifelse(bin.tab.sex$CEL.LG == 5, "Fusion (5)", "No Fission/Fusion (1, 2, 4, 9-14, 18, 20, 21, 24, 25, 27, 30, 32)")))
+
+bin.tab.sex$Fission <- factor(bin.tab.sex$Fission, levels = c("No Fission/Fusion (1, 2, 4, 9-14, 18, 20, 21, 24, 25, 27, 30, 32)",
+                                                              "Fusion (5)",
+                                                              "Fission, Old Centromere (3, 17, 28, 29, 31, 33)", 
+                                                              "Fission, New Centromere (6, 8, 16, 19, 22, 26)"))
+
+
+bin.tab.sex$FissionTemp <- ifelse(bin.tab.sex$CEL.LG %in% c(6, 8, 16, 19, 22, 26), "D",
+                              ifelse(bin.tab.sex$CEL.LG %in% c(17, 33, 29, 31, 3, 28), "C",
+                                     ifelse(bin.tab.sex$CEL.LG == 5, "B", "A")))
+
+
+
+
+
+
+
+#ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.png"), width = 10, height = 14, device = "png")
+
+
+ggplot(bin.tab.sex, aes(factor(NewBin), Recomb.Rate, colour = Sex)) +
+  geom_boxplot() +
   scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~CEL.LG.lab, ncol = 5, scales = "free_x") +
+  facet_wrap(~Sex, ncol = 5, scales = "free_x") +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
         strip.text.x = element_text (size = 12),
@@ -173,20 +220,48 @@ ggplot(bin.tab.sex, aes(Window*(window.size/1e6), value, colour = variable)) +
        y = "Recombination rate (cM/Mb)",
        colour = "Sex")
 
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.png"), width = 10, height = 14, device = "png")
+ggplot(bin.tab.sex, aes(NewBin, Recomb.Rate, colour = Sex)) +
+  geom_line() +
+  stat_smooth() +
+  scale_colour_brewer(palette = "Set1") +
+  facet_wrap(~Sex, ncol = 5, scales = "free_x") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Estimated base pair position (Mb)",
+       y = "Recombination rate (cM/Mb)",
+       colour = "Sex")
 
-bin.tab.sex$CEL.LG.lab <- NULL
-names(bin.tab.sex) <- c("CEL.LG", "Window", "Reverse.Window", "Sex", "Recomb.Rate")
+test <- data.frame(tapply(bin.tab.sex$Recomb.Rate, list(bin.tab.sex$NewBin, bin.tab.sex$Sex), median))
+head(test)
+test$NewBin <- row.names(test)
+test <- melt(test, id.vars = "NewBin")
+test <- na.omit(test)
+test$NewBin <- as.numeric(test$NewBin)
 
-head(bin.tab.sex)
-bin.tab.sex$ChromosomeProportion <- NA
+ggplot(test, aes(NewBin, value, col = variable)) +
+  geom_line(size = 1) +
+  geom_smooth(data = ) +
+  scale_colour_brewer(palette = "Set1") +
+  labs(x = "Relative Chromosomal Position",
+       y = "Median Recombination rate (cM/Mb)",
+       colour = "Sex") +
+  theme(axis.text.x  = element_text (size = 12),
+         axis.text.y  = element_text (size = 12),
+         strip.text.x = element_text (size = 12),
+         axis.title.y = element_text (size = 14, angle = 90),
+         axis.title.x = element_text (size = 14),
+         strip.background = element_blank())
 
-for(i in 1:34){
-  bin.tab.sex$ChromosomeProportion[which(bin.tab.sex$CEL.LG == i)] <- bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)]/max(bin.tab.sex$Window[which(bin.tab.sex$CEL.LG == i)])
-}
+
+ggplot(bin.tab.sex, aes(ChromosomeProportion)) + geom_histogram(binwidth = 0.01)
 
 ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
   #geom_point(alpha = 0) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
   stat_smooth() +
   scale_colour_brewer(palette = "Set1") +
   theme(axis.text.x  = element_text (size = 12),
@@ -199,11 +274,69 @@ ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate,
        y = "Recombination rate (cM/Mb)",
        colour = "Sex")
 
+
 ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
+
+
+ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
+  #geom_point(alpha = 0) +
+  #stat_smooth() +
+  stat_smooth(method = "gam", formula = y ~ s(x)) +
+  facet_wrap(~CEL.LG) +
+  scale_colour_brewer(palette = "Set1") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Relative Chromosomal Position",
+       y = "Recombination rate (cM/Mb)",
+       colour = "Sex")
+
+# for(i in 1:33){
+# print(ggplot(subset(bin.tab.sex, CEL.LG == i), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
+#   #geom_point(alpha = 0) +
+#   stat_smooth() +
+#   facet_wrap(~CEL.LG) +
+#   scale_colour_brewer(palette = "Set1") +
+#   theme(axis.text.x  = element_text (size = 12),
+#         axis.text.y  = element_text (size = 12),
+#         strip.text.x = element_text (size = 12),
+#         axis.title.y = element_text (size = 14, angle = 90),
+#         axis.title.x = element_text (size = 14),
+#         strip.background = element_blank()) +
+#   labs(x = "Relative Chromosomal Position",
+#        y = "Recombination rate (cM/Mb)",
+#        colour = "Sex"))
+# 
+# }
 
 
 write.table(bin.tab, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb.txt"), row.names = F, sep = "\t", quote = F)
 write.table(bin.tab.sex, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.txt"), row.names = F, sep = "\t", quote = F)
+
+head(bin.tab.sex)
+
+
+ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
+  geom_point(alpha = 0.1) +
+  scale_colour_brewer(palette = "Set1") +
+  facet_wrap(~Fission)+
+  stat_smooth(method = "gam", formula = y ~ s(x)) +
+  #stat_smooth(method = "loess") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 9),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank()) +
+  labs(x = "Relative Chromosomal Position",
+       y = "Recombination rate (cM/Mb)",
+       colour = "Sex")
+
+
+
 
 #~~~~~~~~ SUMMARISE
 

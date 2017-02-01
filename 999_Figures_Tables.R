@@ -182,10 +182,12 @@ sex.map <- melt(subset(run5, select = c(SNP.Name, CEL.order, CEL.LG, cMPosition.
 
 head(sex.map)
 sex.map$variable <- gsub("cMPosition.", "", sex.map$variable)
+sex.map$CEL.LG2 <- paste0("CEL", sex.map$CEL.LG)
+levels(sex.map$CEL.LG2) <- paste0("CEL", 1:34)
 
 ggplot(sex.map, aes(CEL.order, value, col = variable)) +
   geom_point() +
-  facet_wrap(~CEL.LG, ncol = 5, scales = "free") +
+  facet_wrap(~CEL.LG2, ncol = 5, scales = "free") +
   scale_color_brewer(palette = "Set1") +
   theme(axis.text.x  = element_text (size = 10),
         axis.text.y  = element_text (size = 12),
@@ -408,7 +410,11 @@ ggplot(max.vals.sex, aes(Est.Length/1e6, value, colour = variable)) +
        y = "Linkage Map Length (cM)",
        colour = "Sex")
 
-ggsave("figs/ChromosomeSizeVsMapLengthBySex", width = 6, height = 5, device = "png")
+summary(lm(Est.Length ~ max.cM.male, data = subset(max.vals, CEL.LG != 34)))
+summary(lm(Est.Length ~ max.cM.female, data = max.vals))
+
+
+ggsave("figs/ChromosomeSizeVsMapLengthBySex.png", width = 6, height = 5, device = "png")
 
 max.vals$RR <- max.vals$max.cM/max.vals$Est.Length
 max.vals$RR.f <- max.vals$max.cM.female/max.vals$Est.Length

@@ -147,7 +147,7 @@ for(i in 1:nrow(bin.tab)){
 head(bin.tab)
 
 bin.tab$Window.To.End <- NA
-  
+
 for(i in 1:34){
   bin.tab$Window.To.End[which(bin.tab$CEL.LG == i)] <- rev(bin.tab$Window[which(bin.tab$CEL.LG == i)])
 }
@@ -164,26 +164,6 @@ ggplot(subset(bin.tab, Window <= 30), aes(Window, Locus.Count)) + geom_point(alp
 write.table(bin.tab, "doc/TableS4_Recombination_Landscape_Info.txt", row.names = F, sep = "\t", quote = F)
 
 
-pdf("figs/Informative_Loci_per_Bin.pdf", width = 8, height = 8)
-
-multiplot(
-  
-  ggplot(subset(bin.tab, CEL.LG != 34 & CEL.LG != 5 & Window <= 40), aes(factor(Window), Mean.Inf.Count)) +
-    geom_boxplot() +
-    labs(x = "Distance to Centromere (Mb)",
-         y = "Mean Number of Informative Loci")
-  ,
-  
-  ggplot(subset(bin.tab, CEL.LG != 34 & CEL.LG != 5 & Window.To.End <= 40), aes(factor(Window.To.End), Mean.Inf.Count)) +
-    geom_boxplot() +
-    labs(x = "Distance to Telomere (Mb)",
-         y = "Mean Number of Informative Loci")
-)
-
-dev.off()
-
-
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 2. Get a corrected level of recombination per linkage group  #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -197,56 +177,6 @@ max.vals$RR.male <- (max.vals$max.cM.male* 1e6)/max.vals$Est.Length
 max.vals$RR.female <- (max.vals$max.cM.female* 1e6)/max.vals$Est.Length
 
 max.vals.auto <- subset(max.vals, CEL.LG != 34)
-
-#~~ How does recombination rate relate to Chromosome length?
-
-ggplot(max.vals.auto, aes(Est.Length, RR)) +
-  stat_smooth(method = "lm", formula = y ~ I(1/x)) +
-  geom_text(aes(label = CEL.LG, col = Fission)) +
-  scale_color_brewer(palette = "Set1")
-
-ggplot(max.vals.auto, aes(Est.Length, RR.male)) +
-  stat_smooth(method = "lm", formula = y ~ I(1/x))+
-  geom_text(aes(label = CEL.LG, col = Fission)) +
-  scale_color_brewer(palette = "Set1")
-
-ggplot(max.vals.auto, aes(Est.Length, RR.female)) +
-  stat_smooth(method = "lm", formula = y ~ I(1/x)) +
-  geom_text(aes(label = CEL.LG, col = Fission)) +
-  scale_color_brewer(palette = "Set1")
-
-
-library(ggrepel)
-
-max.vals$Group <- c(NA, NA, 1, NA, NA, 2, NA, 3, NA, NA, NA, NA, NA, NA, NA, 4, 2, NA, 5, NA, NA, 1, NA, NA, NA, 6, NA, 6, 4, NA, 5, NA, 3, NA)
-max.vals$x <- as.numeric(as.factor(max.vals$Fission))
-# max.vals$x[3] <- 0.95
-# max.vals$x[28] <- 0.95
-# max.vals$x[31] <- 1.05
-# max.vals$x[17] <- 1.05
-# max.vals$x[29] <- 1.05
-# 
-# max.vals$x[30] <- 3.1
-# max.vals$x[23] <- 3.1
-# max.vals$x[21] <- 2.9
-# max.vals$x[14] <- 2.9
-# max.vals$x[27] <- 3.1
-# max.vals$x[24] <- 2.9
-# max.vals$x[7] <- 3.1
-# max.vals$x[2] <- 2.9
-
-ggplot(max.vals, aes(x, Est.Length/1e6)) + 
-  geom_line(data = subset(max.vals, !is.na(Group)), aes(x, Est.Length/1e6, group = Group), colour = "red", alpha = 0.3) +
-  geom_text(aes(label = CEL.LG), size = 2.5) +
-  labs(x = "Chromosome History",
-       y = "Estimated Chromosome Length (Mb)") +
-  scale_x_continuous(breaks = c(1:4),
-                     labels = c("A. Fission\nretaining old\ncentromere",
-                              "B. Fission\nforming new\ncentromere",
-                              "C. No Fission\nor Fusion",
-                              "D. Fusion"))
-
-ggsave(paste0("figs/Chromosome_Type_Size.png"), width = 4, height = 6, device = "png")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -263,22 +193,6 @@ for(i in 1:34){
   bin.tab$adj.cM.Male  [which(bin.tab$CEL.LG == i)] <- bin.tab$cM.Male  [which(bin.tab$CEL.LG == i)]/max.vals$RR.male[which(max.vals$CEL.LG == i)]
   bin.tab$adj.cM.Female[which(bin.tab$CEL.LG == i)] <- bin.tab$cM.Female[which(bin.tab$CEL.LG == i)]/max.vals$RR.female[which(max.vals$CEL.LG == i)]
 }
-
-
-ggplot(bin.tab, aes(Window, Locus.Count)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
-ggplot(bin.tab, aes(Locus.Count,  adj.cM)) + geom_point() + stat_smooth(method = "lm")
-ggplot(subset(bin.tab, Window <= 30), aes(Window, Locus.Count)) + geom_point(alpha = 0.1) + stat_smooth(method = "lm")
-
-summary(lm(Locus.Count ~ cM, data = bin.tab))
-
-#~~ How long is the non-recombining region on CEL 5?
-
-subset(bin.tab, CEL.LG == 5 & Window %in% 68:80)
-subset(mapdata, CEL.LG == 5 & Dummy.Position > 6.8e7 & Dummy.Position < 8e7)[,c("SNP.Name", "cMPosition.run5", "cMdiff", "Dummy.Position")]
-
-subset(bin.tab, CEL.LG == 32)
-
-head(bin.tab)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 4. Create sex specific maps                     #
@@ -346,160 +260,14 @@ bin.tab.sex <- na.omit(bin.tab.sex)
 bin.tab.sex.acro <- subset(bin.tab.sex, !CEL.LG %in% c(5, 34))
 bin.tab.sex.acro <- na.omit(bin.tab.sex.acro)
 
+bin.tab.sex.acro.small <- subset(bin.tab.sex.acro, CEL.LG %in% c(6, 8, 16, 22, 26, 2, 7, 10, 24, 27, 32))
+
+
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 5. Investigate variation in recombination rate  #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-#~~ Spline of recombination rate on proportion spline on acrocentric chromosomes
-
-# Raw
-
-ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Recomb.Rate, colour = Sex)) +
-  #geom_point(alpha = 0.2) +
-  #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth(method = "loess", span = 0.15) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Raw Recombination rate (cM/Mb)",
-       colour = "Sex") 
-
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
-
-
-# Adjusted
-
-ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Adjusted.Recomb.Rate, colour = Sex)) +
-  #geom_point(alpha = 0.2) +
-  #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth(method = "loess", span = 0.15) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Adjusted Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-
-
-#~~ Spline of recombination rate on window spline on each chromosomes
-
-ggplot(bin.tab.sex, aes(x = Window, y = Recomb.Rate, colour = Sex)) +
-  geom_line(alpha = 0.4) +
-  stat_smooth(method = "loess", span = 0.2) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~CEL.LG.lab, scales = "free_x") +
-  theme(axis.text.x  = element_text (size = 10),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated Genomic Position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_LG.png"), width = 10, height = 14, device = "png")
-
-
-#~~ Look at splines based on chromosome type
-
-# Raw
-
-ggplot(subset(bin.tab.sex.acro, Window <= window.cutoff), aes(x = Window, y = Recomb.Rate, colour = Fission)) +
-  #geom_point(alpha = 0.2) +
-  #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth(method = "loess", span = 0.15) +
-  facet_wrap(~Sex) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Recombination Rate (cM/Mb)",
-       colour = "Chromosome History")
-
-# Adjusted
-
-ggplot(subset(bin.tab.sex.acro, Window <= window.cutoff), aes(x = Window, y = Adjusted.Recomb.Rate, colour = Fission)) +
-  #geom_point(alpha = 0.2) +
-  #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth(method = "loess", span = 0.15) +
-  facet_wrap(~Sex) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Adjusted Recombination Rate (cM/Mb)",
-       colour = "Chromosome History")
-
-
-bin.tab.sex.acro.small <- subset(bin.tab.sex.acro, CEL.LG %in% c(6, 8, 16, 22, 26, 2, 7, 10, 24, 27, 32))
-
-ggplot(subset(bin.tab.sex.acro.small, Window <= window.cutoff), aes(x = Window, y = Recomb.Rate, colour = Fission)) +
-  stat_smooth(method = "loess", span = 0.15) +
-  #geom_boxplot() +
-  facet_wrap(~Sex) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Recombination Rate (cM/Mb)",
-       colour = "Sex")
-
-
-ggplot(subset(bin.tab.sex.acro.small, Window <= window.cutoff), aes(x = Window, y = Adjusted.Recomb.Rate, colour = Fission)) +
-  stat_smooth(method = "loess", span = 0.15) +
-  #geom_boxplot() +
-  facet_wrap(~Sex) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Adjusted Recombination Rate (cM/Mb)",
-       colour = "Sex")
-
-
-
-ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Adjusted.Recomb.Rate, colour = Fission)) +
-  stat_smooth(method = "loess", span = 0.15) +
-  #geom_boxplot() +
-  facet_wrap(~Sex) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Chromosome Proportion",
-       y = "Recombination Rate (cM/Mb)",
-       colour = "Sex")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

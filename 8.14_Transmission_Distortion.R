@@ -27,6 +27,21 @@ mapdata$Fission <- ifelse(mapdata$CEL.LG %in% c(6, 8, 16, 19, 22, 26), "B_Fissio
                                   ifelse(mapdata$CEL.LG == 5, "D_Fusion", "C_No_Fission_Fusion")))
 
 
+snpinfo <- summary.snp.data(gtdata(abeldata))
+head(snpinfo)
+
+snpinfo$SNP.Name <- row.names(snpinfo)
+
+mapdata <- join(mapdata, snpinfo)
+
+
+ggplot(mapdata, aes(Dummy.Position, Q.2, col = Fission)) +
+  stat_smooth(method = "loess", span = 0.05) +
+  #geom_point(alpha = 0.2) +
+  scale_colour_brewer(palette = "Set1")
+
+
+
 recsumm <- read.table("results/8_Per_ID_Recomb.txt", header = T, stringsAsFactors = F)
 
 lg.vec <- sort(unique(mapdata$CEL.LG))
@@ -230,6 +245,7 @@ rm(temp, mumtest, dadtest)
 
 fulltrans <- join(fulltrans, subset(mapdata, select = c(SNP.Name, CEL.LG, cMPosition.run5, Dummy.Position, Fission)))
 fulltrans <- subset(fulltrans, CEL.LG != lg.sex)
+fulltrans <- join(fulltrans, subset(mapdata, select = c(SNP.Name, Q.2)))
 
 subtrans <- subset(fulltrans, N >= 100)
 
@@ -256,6 +272,11 @@ ggplot(subtrans, aes(N, Minor.Trans.Freq, col = Fission)) +
   facet_wrap(~Parent) +
   scale_colour_brewer(palette = "Set1")
 
+ggplot(subtrans, aes(Q.2, Minor.Trans.Freq, col = Fission)) +
+  geom_point(alpha = 0.2) +
+  facet_wrap(~Parent) +
+  scale_colour_brewer(palette = "Set1")
+
 ggplot(fullcomp, aes(Male, Female, col = Fission)) +
   geom_point(alpha = 0.2) +
   scale_colour_brewer(palette = "Set1")
@@ -268,14 +289,15 @@ ggplot(subcomp, aes(Male, Female, col = Fission)) +
 
 ggplot(subtrans, aes(Dummy.Position, Minor.Trans.Freq, col = Parent)) +
   geom_point(alpha = 0.1) +
-  stat_smooth(method = "loess", span = 0.3) +
+  stat_smooth(method = "loess", span = 0.05, se = F) +
   facet_wrap(~CEL.LG, scales = "free_x") +
   scale_colour_brewer(palette = "Set1")
 
+subset(subtrans, CEL.LG == 10 & Dummy.Position > 1.2e7 & Dummy.Position < 1.5e7)
 
 ggplot(subset(subtrans, Dummy.Position < 40e6 & CEL.LG != 5),
        aes(Dummy.Position, Minor.Trans.Freq, col = Fission)) +
-  geom_point(alpha = 0.01) +
+  #geom_point(alpha = 0.01) +
   stat_smooth(method = "loess", span = 0.1) +
   facet_wrap(~Parent, scales = "free_x") +
   scale_colour_brewer(palette = "Set1")

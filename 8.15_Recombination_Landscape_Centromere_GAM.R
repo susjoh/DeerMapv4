@@ -152,6 +152,9 @@ for(i in 1:34){
   bin.tab$Window.To.End[which(bin.tab$CEL.LG == i)] <- rev(bin.tab$Window[which(bin.tab$CEL.LG == i)])
 }
 
+bin.tab$FM.Rate <- bin.tab$cM.Female - bin.tab$cM.Male
+
+
 ggplot(bin.tab, aes(Window, Locus.Count)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
 ggplot(bin.tab, aes(Window, Mean.Inf.Count)) + geom_point() + stat_smooth() + facet_wrap(~CEL.LG, scales = "free_x")
 
@@ -161,7 +164,6 @@ ggplot(bin.tab, aes(Window, Mean.Inf.Count)) + geom_point() + stat_smooth() + fa
 ggplot(bin.tab, aes(Locus.Count,  cM)) + geom_point() + stat_smooth(method = "lm")
 ggplot(subset(bin.tab, Window <= 30), aes(Window, Locus.Count)) + geom_point(alpha = 0.1) + stat_smooth(method = "lm")
 
-write.table(bin.tab, "doc/TableS4_Recombination_Landscape_Info.txt", row.names = F, sep = "\t", quote = F)
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -187,12 +189,24 @@ head(bin.tab)
 bin.tab$adj.cM <- NA
 bin.tab$adj.cM.Male <- NA
 bin.tab$adj.cM.Female <- NA
+bin.tab$adj.FM.Rate <- NA
 
 for(i in 1:34){
   bin.tab$adj.cM       [which(bin.tab$CEL.LG == i)] <- bin.tab$cM       [which(bin.tab$CEL.LG == i)]/max.vals$RR[which(max.vals$CEL.LG == i)]
   bin.tab$adj.cM.Male  [which(bin.tab$CEL.LG == i)] <- bin.tab$cM.Male  [which(bin.tab$CEL.LG == i)]/max.vals$RR.male[which(max.vals$CEL.LG == i)]
   bin.tab$adj.cM.Female[which(bin.tab$CEL.LG == i)] <- bin.tab$cM.Female[which(bin.tab$CEL.LG == i)]/max.vals$RR.female[which(max.vals$CEL.LG == i)]
+  bin.tab$adj.FM.Rate  [which(bin.tab$CEL.LG == i)] <- bin.tab$FM.Rate  [which(bin.tab$CEL.LG == i)]/max.vals$RR[which(max.vals$CEL.LG == i)]
 }
+
+head(bin.tab)
+
+subset(bin.tab, Window == 1 & CEL.LG %in% c(10, 26, 33, 19, 27))
+
+max.vals
+data.frame(x = tapply(bin.tab$adj.cM, bin.tab$CEL.LG, sum, na.rm = T),
+           y = tapply(bin.tab$cM, bin.tab$CEL.LG, sum, na.rm = T))
+
+write.table(bin.tab, "doc/TableS4_Recombination_Landscape_Info.txt", row.names = F, sep = "\t", quote = F)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 4. Create sex specific maps                     #
@@ -255,20 +269,71 @@ bin.tab.sex <- subset(bin.tab.sex, Adjusted.Recomb.Rate < sort(bin.tab.sex$Adjus
 
 bin.tab.sex <- na.omit(bin.tab.sex)
 
-#~~ Make a subset removing the metacentric chromosome and the X chromosome
+bin.tab.sex$Key <- paste(bin.tab.sex$CEL.LG, bin.tab.sex$Window, sep = "_")
+bin.tab$Key <- paste(bin.tab$CEL.LG, bin.tab$Window, sep = "_")
 
-bin.tab.sex.acro <- subset(bin.tab.sex, !CEL.LG %in% c(5, 34))
-bin.tab.sex.acro <- na.omit(bin.tab.sex.acro)
+bin.tab <- subset(bin.tab, Key %in% bin.tab.sex$Key)
 
-bin.tab.sex.acro.small <- subset(bin.tab.sex.acro, CEL.LG %in% c(6, 8, 16, 22, 26, 2, 7, 10, 24, 27, 32))
+#~~ Make datasets removing the metacentric chromosome and the X chromosome, small chromosomes, etc. WINDOW SIZE CUTOFF APPLIED
+
+small.chrs <- c(6, 8, 16, 22, 26, 2, 7, 10, 24, 27, 32)
+
+bin.tab.sex <- join(bin.tab.sex, subset(max.vals, select = c(CEL.LG, Est.Length, RR, RR.male, RR.female)))
+
+bin.tab <- join(bin.tab, subset(max.vals, select = c(CEL.LG, Est.Length, RR, RR.male, RR.female, Fission)))
+
+bin.tab.acro <- subset(bin.tab, Window <= window.cutoff & !CEL.LG %in% c(5, 34))
+bin.tab.acro.small <- subset(bin.tab.acro, CEL.LG %in% small.chrs)
 
 
+head(bin.tab.sex)
+bin.tab.sex.acro   <- subset(bin.tab.sex, !CEL.LG %in% c(5, 34))
+bin.tab.sex.acro   <- na.omit(bin.tab.sex.acro)
+bin.tab.sex.acro.f <- subset(bin.tab.sex.acro, Sex == "Female" & Window <= window.cutoff)
+bin.tab.sex.acro.m <- subset(bin.tab.sex.acro, Sex == "Male"   & Window <= window.cutoff)
+
+bin.tab.sex.acro.small <- subset(bin.tab.sex.acro, CEL.LG %in% small.chrs)
+bin.tab.sex.acro.small.f <- subset(bin.tab.sex.acro.small, Sex == "Female"& Window <= window.cutoff)
+bin.tab.sex.acro.small.m <- subset(bin.tab.sex.acro.small, Sex == "Male"& Window <= window.cutoff)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# 5. Investigate variation in recombination rate  #
+# 5. Some graphs                                  #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
+ggplot(bin.tab.sex, aes(Window, Recomb.Rate, colour = Sex)) +
+  stat_smooth(method = "loess", span = 0.2, se = F) +
+  facet_wrap(~CEL.LG.lab, scales = "free_x") +
+  scale_colour_brewer(palette = "Set1")
 
+
+ggplot(subset(bin.tab.sex.acro, Window <= window.cutoff),
+       aes(Window, Adjusted.Recomb.Rate, group = CEL.LG, colour = Fission)) +
+  stat_smooth(method = "loess", span = 0.2, se = F) +
+  facet_grid(Fission~Sex) +
+  ggtitle("All acrocentrics - adjusted recombination rate")
+
+ggplot(subset(bin.tab.sex.acro.f, Window <= window.cutoff),
+       aes(Window, Adjusted.Recomb.Rate, colour = Fission)) +
+  stat_smooth(method = "loess", span = 0.2, se = T) +
+  scale_colour_brewer(palette = "Set1")
+
+ggplot(subset(bin.tab.sex.acro.small, Window <= window.cutoff),
+       aes(Window, Adjusted.Recomb.Rate, group = CEL.LG, colour = Fission)) +
+  stat_smooth(method = "loess", span = 0.2, se = F) +
+  facet_grid(Fission~Sex) +
+  ggtitle("Small acrocentrics - adjusted recombination rate")
+
+ggplot(subset(bin.tab.acro, Window <= window.cutoff),
+       aes(Window, adj.FM.Rate, group = CEL.LG, colour = Fission)) +
+  stat_smooth(method = "loess", span = 0.2, se = F) +
+  facet_grid(~Fission) +
+  ggtitle("All acrocentrics - adjusted heterochiasmy")
+
+ggplot(subset(bin.tab.acro.small, Window <= window.cutoff),
+       aes(Window, adj.FM.Rate, group = CEL.LG, colour = Fission)) +
+  stat_smooth(method = "loess", span = 0.2, se = F) +
+  facet_grid(~Fission) +
+  ggtitle("Small acrocentrics - adjusted heterochiasmy")
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # 6. Run general additive models                  #
@@ -276,686 +341,377 @@ bin.tab.sex.acro.small <- subset(bin.tab.sex.acro, CEL.LG %in% c(6, 8, 16, 22, 2
 
 library(mgcv)
 
-bin.tab.sex.acro.f <- subset(bin.tab.sex.acro, Sex == "Female" & Window <= window.cutoff)
-head(bin.tab.sex.acro.f)
-bin.tab.sex.acro.f <- join(bin.tab.sex.acro.f, subset(max.vals, select = c(CEL.LG, Est.Length, RR, RR.male, RR.female)))
+#~~ By fission type, all acros, females only
 
-
-ggplot(subset(bin.tab.sex.acro, Window <= window.cutoff),
-       aes(x = Window, y = Recomb.Rate, group = CEL.LG)) +
-  stat_smooth(method = "loess", span = 0.2, se = F) +
-  facet_grid(Sex~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Recombination Rate (cM/Mb)")
-
-
-ggplot(subset(bin.tab.sex.acro.small, Window <= window.cutoff),
-       aes(x = Window, y = Recomb.Rate, group = CEL.LG, col = Fission)) +
-  stat_smooth(method = "loess", span = 0.2, se = F) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Recombination Rate (cM/Mb)")
-
-
-ggplot(subset(bin.tab.sex, Sex == "Female"),
-       aes(x = Window, y = Recomb.Rate, colour = Fission)) +
-  #geom_line() +
-  stat_smooth(se = F, span = 0.2) +
-  facet_wrap(~CEL.LG, scales = "free_x") +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Recombination Rate (cM/Mb)",
-       colour = "CEL.LG")
-
-#
-
-bin.tab.sex.acro.small.f <- subset(bin.tab.sex.acro.f, CEL.LG %in% c(6, 8, 16, 22, 26, 2, 7, 10, 24, 27, 32))
-
-bin.tab.sex.acro.f <- subset(bin.tab.sex.acro.f, Window >3)
-
-summary(fit1 <- gam(Recomb.Rate ~ s(Window, by = factor(Fission), k = 20) + s(I(1/Est.Length)), data = bin.tab.sex.acro.f))
+summary(fit1 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10), data = bin.tab.sex.acro.f))
 
 plotGAM(fit1, grep.value = "Fission")
 
-summary(fit2 <- gam(Recomb.Rate ~ s(Window, by = factor(Fission), k = 20) + s(I(1/Est.Length)), data = bin.tab.sex.acro.small.f))
+
+#~~ By fission type, small acros only, females only
+
+summary(fit2 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10), data = bin.tab.sex.acro.small.f))
 
 plotGAM(fit2, grep.value = "Fission")
+par(mfrow = c(2, 2))
+gam.check(fit2)
 
-x <- subset(bin.tab.sex.acro.small.f, Window > 3)
+#~~ By fission type, all acros, males only
 
-summary(fit3 <- gam(Recomb.Rate ~ s(Window, by = factor(Fission), k = 20) + s(I(1/Est.Length)), data = x))
+summary(fit3 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 20), data = bin.tab.sex.acro.m))
 
-plotGAM(fit3)
+plotGAM(fit3, grep.value = "Fission")
 
-#~~ By linkage group
+#~~ By fission type, small acros only, males only
 
-# summary(fit2 <- gam(Recomb.Rate ~ s(Window, by = factor(CEL.LG), k = 10), data = bin.tab.sex.acro.f))
-# 
-# par(mfrow = c(3,6))
-# x <- plot(fit2)
-# dev.off()
-# 
-# gamplot <- NULL
-# 
-# for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
-# 
-# head(gamplot)
-# gamplot$CEL.LG <- sapply(gamplot$ylab, function(x) strsplit(as.character(x), split = "(CEL.LG)", fixed = T)[[1]][2])
-# gamplot <- join(gamplot, max.vals[,c("CEL.LG", "Fission")])
-# 
-# ggplot(gamplot, aes(x, y, group = CEL.LG)) +
-#   geom_line() +
-#   facet_wrap(~Fission)
-#   geom_line(aes(x, y+se), linetype = "dotted") +
-#   geom_line(aes(x, y-se), linetype = "dotted") +
-#   #scale_colour_brewer(palette = "Set1") +
-#   theme(axis.text.x  = element_text (size = 12),
-#         axis.text.y  = element_text (size = 12),
-#         strip.text.x = element_text (size = 12),
-#         axis.title.y = element_text (size = 14, angle = 90),
-#         axis.title.x = element_text (size = 14),
-#         strip.background = element_blank(),
-#         legend.position = "top",
-#         legend.direction = "vertical")
+summary(fit4 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 20), data = bin.tab.sex.acro.small.m))
+
+plotGAM(fit4, grep.value = "Fission")
 
 
+#~~ By fission type, heterochiasmy, all acros
 
+summary(fit5 <- gam(adj.FM.Rate ~ s(Window, by = factor(Fission), k = 20), data = bin.tab.acro))
 
+plotGAM(fit5, grep.value = "Fission")
 
+#~~ By fission type, heterochiasmy, small acros only
 
+summary(fit6 <- gam(adj.FM.Rate ~ s(Window, by = factor(Fission), k = 20), data = bin.tab.acro.small))
 
+plotGAM(fit6, grep.value = "Fission")
 
-
-
-
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-summary(fit1 <- gam(Recomb.Rate ~ s(Window, by = factor(paste0(FissionTemp, Sex)), k = 10), data = test))
+#~~ Fit1 Graph~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 par(mfrow = c(2, 2))
 x <- plot(fit1)
+gamplot <- NULL
 
+for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
 
+gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+head(gamplot)
+gamplot$y <- gamplot$y+fit1$coefficients[["(Intercept)"]]
 
+gamplot$Label <- sapply(gamplot$ylab, function(x) strsplit(as.character(x), ")")[[1]][3])
+gamplot$Label[grep("A_", gamplot$Label)] <- "Fission, old centromere"
+gamplot$Label[grep("B_", gamplot$Label)] <- "Fission, new centromere"
+gamplot$Label[grep("C_", gamplot$Label)] <- "No fission or fusion"
 
+gamplot1 <- gamplot
 
-
-#~~~~~ Characterise the degree of heterochiasmy
-
-bin.tab$FMDiff <- bin.tab$cM.Female - bin.tab$cM.Male
-
-bin.tab$ChromosomeProportion <- NA
-
-for(i in 1:34){
-  bin.tab$ChromosomeProportion[which(bin.tab$CEL.LG == i)] <- bin.tab$Window[which(bin.tab$CEL.LG == i)]/max(bin.tab$Window[which(bin.tab$CEL.LG == i)])
-}
-
-bin.tab$NewBin <- .bincode(bin.tab$ChromosomeProportion, breaks = seq(0, 1, 0.01))/100
-
-bin.tab$Fission <- ifelse(bin.tab$CEL.LG %in% c(6, 8, 16, 19, 22, 26), "B_Fission_New_Centro",
-                          ifelse(bin.tab$CEL.LG %in% c(17, 33, 29, 31, 3, 28), "A_Fission_Old_Centro",
-                                 ifelse(bin.tab$CEL.LG == 5, "D_Fusion", "C_No_Fission_Fusion")))
-
-
-bin.tab.acro <- subset(bin.tab, !CEL.LG %in% c(5, 34))
-
-head(bin.tab.acro)
-
-ggplot(subset(bin.tab.acro, Window <= 40), aes(x = Window, y = FMDiff, colour = Fission)) +
-  #geom_point(alpha = 0.2) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  #stat_smooth() +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distance from Centromere (Mb)",
-       y = "Female - Male Recombination Rate (cM/Mb)",
-       colour = "Sex")
-
-
-head(bin.tab.acro)
-
-#
-
-
-
-
-
-
-
-
-
-
-ggplot(bin.tab.sex, aes(x = ChromosomeProportion, y = Recomb.Rate, colour = Sex)) +
-  geom_line(alpha = 0.4) +
-  stat_smooth() +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~CEL.LG.lab, scales = "free_x") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Distances from centromere (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_LG.png"), width = 10, height = 14, device = "png")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Recomb.Rate, colour = Fission)) +
-  #geom_line(alpha = 0.5) +
-  #stat_smooth() +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 10), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex, scales = "free_x") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-ggplot(subset(bin.tab.sex.acro, Window <= 40),
-       aes(x = Window, y = Recomb.Rate, group = CEL.LG.lab)) +
-  geom_line(alpha = 0.5) +
-  stat_smooth(se = F) +
-  #stat_smooth(method = "gam", formula = y ~ s(x, k = 10), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_grid(Sex~Fission, scales = "free_x") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Recombination rate (cM/Mb)")
-
-
-#ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_sex.png"), width = 10, height = 14, device = "png")
-
-fit <- fit1
-
-plotGAM <- function(fit){
-  x <- plot(fit)
-  
-  
-}
-x <- plot(fit1)
-
-gamplot <- rbind(data.frame(x = x[[1]]$x, y = x[[1]]$fit[,1], se = x[[1]]$se, ylab = x[[1]]$ylab),
-                 data.frame(x = x[[2]]$x, y = x[[2]]$fit[,1], se = x[[2]]$se, ylab = x[[2]]$ylab),
-                 data.frame(x = x[[3]]$x, y = x[[3]]$fit[,1], se = x[[3]]$se, ylab = x[[3]]$ylab))
-
-gamplot <- rbind(data.frame(x = x[[1]]$x, y = x[[1]]$fit[,1], se = x[[1]]$se, ylab = x[[1]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[2]]$x, y = x[[2]]$fit[,1], se = x[[2]]$se, ylab = x[[2]]$ylab, Sex = "Male"),
-                 data.frame(x = x[[3]]$x, y = x[[3]]$fit[,1], se = x[[3]]$se, ylab = x[[3]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[4]]$x, y = x[[4]]$fit[,1], se = x[[4]]$se, ylab = x[[4]]$ylab, Sex = "Male"),
-                 data.frame(x = x[[5]]$x, y = x[[5]]$fit[,1], se = x[[5]]$se, ylab = x[[5]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[6]]$x, y = x[[6]]$fit[,1], se = x[[6]]$se, ylab = x[[6]]$ylab, Sex = "Male"))
-
-
-
-
-
-
-
-
-ggplot(subset(bin.tab.sex, CEL.LG != 5 & Window <= 30), aes(x = Window, y = Recomb.Rate, colour = Fission)) +
-  #geom_point(alpha = 0.1) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_grid(~Sex) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank(),
-        legend.position = "top") +
-  labs(x = "Relative Chromosomal Position",
-       y = "Estimated Distance from Centromere (Mb)")  
-
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_Type.png"), width = 8, height = 4, device = "png")
-
-
-
-bin.tab.sex.median.raw <- data.frame(tapply(bin.tab.sex$Recomb.Rate, list(bin.tab.sex$NewBin, bin.tab.sex$Sex), median, na.rm = T))
-bin.tab.sex.median.raw$NewBin <- row.names(bin.tab.sex.median.raw)
-bin.tab.sex.median.raw <- melt(bin.tab.sex.median.raw, id.vars = "NewBin")
-bin.tab.sex.median.raw$variable <- as.character(bin.tab.sex.median.raw$variable)
-head(bin.tab.sex.median.raw)
-bin.tab.sex.median.raw$NewBin <- as.numeric(bin.tab.sex.median.raw$NewBin)
-
-
-
-
-ggplot(bin.tab.sex.median.raw, aes(x = NewBin, y = value, colour = variable)) +
-  geom_line(alpha = 0.4) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Median Bin Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-
-
-
-
-
-bin.tab.sex.median <- data.frame(tapply(bin.tab.sex$Recomb.Rate, list(bin.tab.sex$NewBin, bin.tab.sex$Sex, bin.tab.sex$FissionTemp), median, na.rm = T))
-bin.tab.sex.median$NewBin <- row.names(bin.tab.sex.median)
-bin.tab.sex.median <- melt(bin.tab.sex.median, id.vars = "NewBin")
-bin.tab.sex.median$variable <- as.character(bin.tab.sex.median$variable)
-bin.tab.sex.median$Sex <- sapply(bin.tab.sex.median$variable, function(x) strsplit(x, split = ".", fixed = T)[[1]][1])
-bin.tab.sex.median$FissionTemp <- sapply(bin.tab.sex.median$variable, function(x) strsplit(x, split = ".", fixed = T)[[1]][2])
-library(plyr)
-bin.tab.sex.median <- join(bin.tab.sex.median, unique(subset(bin.tab.sex, select = c(Fission, FissionTemp))))
-head(bin.tab.sex.median)
-bin.tab.sex.median$NewBin <- as.numeric(bin.tab.sex.median$NewBin)-0.005
-
-
-
-test <- droplevels(subset(bin.tab.sex, Window <= 30 & CEL.LG != 5))
-head(test)
-
-summary(glm(Recomb.Rate ~ Window * FissionTemp, data = test))
-
-library(mgcv)
-summary(fit1 <- gam(Recomb.Rate ~ s(Window) + s(factor(Sex)), data = test))
-summary(fit1 <- gam(Recomb.Rate ~ s(Window, by = factor(paste0(FissionTemp, Sex)), k = 10), data = test))
+#~~ Fit2 Graph
 
 par(mfrow = c(2, 2))
-x <- plot(fit1)
+x <- plot(fit2)
 
-gamplot <- rbind(data.frame(x = x[[1]]$x, y = x[[1]]$fit[,1], se = x[[1]]$se, ylab = x[[1]]$ylab),
-                 data.frame(x = x[[2]]$x, y = x[[2]]$fit[,1], se = x[[2]]$se, ylab = x[[2]]$ylab),
-                 data.frame(x = x[[3]]$x, y = x[[3]]$fit[,1], se = x[[3]]$se, ylab = x[[3]]$ylab))
+gamplot <- NULL
 
-gamplot <- rbind(data.frame(x = x[[1]]$x, y = x[[1]]$fit[,1], se = x[[1]]$se, ylab = x[[1]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[2]]$x, y = x[[2]]$fit[,1], se = x[[2]]$se, ylab = x[[2]]$ylab, Sex = "Male"),
-                 data.frame(x = x[[3]]$x, y = x[[3]]$fit[,1], se = x[[3]]$se, ylab = x[[3]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[4]]$x, y = x[[4]]$fit[,1], se = x[[4]]$se, ylab = x[[4]]$ylab, Sex = "Male"),
-                 data.frame(x = x[[5]]$x, y = x[[5]]$fit[,1], se = x[[5]]$se, ylab = x[[5]]$ylab, Sex = "Female"),
-                 data.frame(x = x[[6]]$x, y = x[[6]]$fit[,1], se = x[[6]]$se, ylab = x[[6]]$ylab, Sex = "Male"))
+for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
 
+gamplot <- gamplot[grep("Fission", gamplot$ylab),]
 
-ggplot(gamplot, aes(x, y, colour = ylab)) +
-  geom_line() +
-  geom_line(aes(x, y+se), linetype = "dotted") +
-  geom_line(aes(x, y-se), linetype = "dotted") +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "New Bin",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+head(gamplot)
 
-ggplot(subset(gamplot, Sex == "Female"), aes(x, y, colour = ylab)) +
-  geom_line() +
-  geom_line(aes(x, y+se), linetype = "dotted") +
-  geom_line(aes(x, y-se), linetype = "dotted") +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "New Bin",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+gamplot$Label <- sapply(gamplot$ylab, function(x) strsplit(as.character(x), ")")[[1]][3])
+gamplot$Label[grep("A_", gamplot$Label)] <- "Fission, old centromere"
+gamplot$Label[grep("B_", gamplot$Label)] <- "Fission, new centromere"
+gamplot$Label[grep("C_", gamplot$Label)] <- "No fission or fusion"
+
+gamplot$y <- gamplot$y+fit1$coefficients[["(Intercept)"]]
+
+gamplot2 <- gamplot
 
 
-ggplot(subset(bin.tab.sex, Sex == "Female"), aes(Window, Recomb.Rate, colour = Fission)) +
-  geom_line() +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "New Bin",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+gamplot1$Type <- c("A. All acrocentric chromosomes")
+gamplot2$Type <- c("B. Small acrocentric chromosomes")
+
+gamplot <- rbind(gamplot1, gamplot2)
 
 
 
-ggplot(bin.tab.sex, aes(factor(NewBin), Recomb.Rate, colour = Sex)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 10), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Window",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+pdf("figs/Per_Chromosome_GAMs.pdf", width = 8.5, height = 4) 
 
-
-ggplot(subset(bin.tab.sex,!CEL.LG %in% c(5, 34) & Window <= 30),
-       aes(Window, Recomb.Rate, colour = Fission)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 10), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex) +
-  #geom_line(data = bin.tab.sex.median, aes(x = NewBin, y = value)) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank(),
-        legend.position = "top",
-        legend.direction = "vertical") +
-  labs(x = "Window",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Chromosome Type")
-
-ggplot(subset(bin.tab.sex,!CEL.LG %in% c(5, 34)),
-       aes(ChromosomeProportion, Recomb.Rate, colour = Fission)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 50), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Sex) +
-  #geom_line(data = bin.tab.sex.median, aes(x = NewBin, y = value)) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank(),
-        legend.position = "top",
-        legend.direction = "vertical") +
-  labs(x = "Window",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Chromosome Type")
-
-
-ggplot(subset(bin.tab.sex, CEL.LG != 5), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-  scale_colour_brewer(palette = "Set1") +
-  #geom_point(data = subset(bin.tab.sex, Window == 1), aes(ChromosomeProportion, Recomb.Rate, colour = Sex), alpha = 0.1) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 50), size = 1) +
-  #facet_grid(Sex~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-ggplot(subset(bin.tab.sex, CEL.LG != 5), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-  scale_colour_brewer(palette = "Set1") +
-  geom_point(alpha = 0.1) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 50), size = 1) +
-  facet_grid(Sex~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-ggplot(bin.tab.sex.median, aes(x = NewBin, y = value, colour = Sex)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  #geom_line() +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-ggplot(subset(bin.tab.sex.median, FissionTemp != "B"), aes(x = NewBin, y = value, colour = Sex)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 15), size = 1) +
-  geom_line(alpha = 0.4) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_grid(Sex~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 8),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-ggplot(subset(bin.tab.sex.median, FissionTemp != "B"), aes(x = NewBin, y = value, colour = Sex)) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 15), size = 1) +
-  geom_line(alpha = 0.4) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_grid(Sex~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 8),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Estimated base pair position (Mb)",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-ggplot(subset(bin.tab.sex, FissionTemp != "B" & Window <= 30), aes(x = Window, y = Recomb.Rate, colour = Sex)) +
-  geom_point(alpha = 0.4) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 30), size = 1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Fission) +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 8),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Window",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-
-
-test <- data.frame(tapply(bin.tab.sex$Recomb.Rate, list(bin.tab.sex$NewBin, bin.tab.sex$Sex), median))
-head(test)
-test$NewBin <- row.names(test)
-test <- melt(test, id.vars = "NewBin")
-test <- na.omit(test)
-test$NewBin <- as.numeric(test$NewBin)
-
-ggplot(test, aes(NewBin, value, col = variable)) +
+ggplot(gamplot, aes(x, y, colour = Label)) +
   geom_line(size = 1) +
-  geom_smooth(data = ) +
-  scale_colour_brewer(palette = "Set1") +
-  labs(x = "Relative Chromosomal Position",
-       y = "Median Recombination rate (cM/Mb)",
-       colour = "Sex") +
+  geom_line(aes(x, y+se), linetype = "dotted") +
+  geom_line(aes(x, y-se), linetype = "dotted") +
+  scale_colour_brewer(palette = "Dark2") +
+  facet_wrap(~Type, scales = "fixed") +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
         strip.text.x = element_text (size = 12),
         axis.title.y = element_text (size = 14, angle = 90),
         axis.title.x = element_text (size = 14),
-        strip.background = element_blank())
+        strip.background = element_blank(),
+        legend.direction = "vertical",
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10)) +
+  labs(x = "Distance from Centromere (Mb)",
+       y = "Adjusted Recombination Rate (cM/Mb)",
+       col = "Chromosome History") 
+
+dev.off()
 
 
-ggplot(bin.tab.sex, aes(ChromosomeProportion)) + geom_histogram(binwidth = 0.01)
 
-ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-  #geom_point(alpha = 0) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth() +
-  scale_colour_brewer(palette = "Set1") +
+
+#~~ Fit3 Graph~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+par(mfrow = c(2, 2))
+x <- plot(fit3)
+gamplot <- NULL
+
+for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+
+gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+head(gamplot)
+gamplot$y <- gamplot$y+fit1$coefficients[["(Intercept)"]]
+
+gamplot$Label <- sapply(gamplot$ylab, function(x) strsplit(as.character(x), ")")[[1]][3])
+gamplot$Label[grep("A_", gamplot$Label)] <- "Fission, old centromere"
+gamplot$Label[grep("B_", gamplot$Label)] <- "Fission, new centromere"
+gamplot$Label[grep("C_", gamplot$Label)] <- "No fission or fusion"
+
+gamplot1 <- gamplot
+
+#~~ Fit2 Graph
+
+par(mfrow = c(2, 2))
+x <- plot(fit4)
+
+gamplot <- NULL
+
+for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+
+gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+
+head(gamplot)
+
+gamplot$Label <- sapply(gamplot$ylab, function(x) strsplit(as.character(x), ")")[[1]][3])
+gamplot$Label[grep("A_", gamplot$Label)] <- "Fission, old centromere"
+gamplot$Label[grep("B_", gamplot$Label)] <- "Fission, new centromere"
+gamplot$Label[grep("C_", gamplot$Label)] <- "No fission or fusion"
+
+gamplot$y <- gamplot$y+fit1$coefficients[["(Intercept)"]]
+
+gamplot2 <- gamplot
+
+gamplot1$Type <- c("A. All acrocentric chromosomes")
+gamplot2$Type <- c("B. Small acrocentric chromosomes")
+
+gamplot <- rbind(gamplot1, gamplot2)
+
+
+pdf("figs/Per_Chromosome_GAMs_Males.pdf", width = 8.5, height = 4) 
+
+ggplot(gamplot, aes(x, y, colour = Label)) +
+  geom_line(size = 1) +
+  geom_line(aes(x, y+se), linetype = "dotted") +
+  geom_line(aes(x, y-se), linetype = "dotted") +
+  scale_colour_brewer(palette = "Dark2") +
+  facet_wrap(~Type, scales = "fixed") +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
         strip.text.x = element_text (size = 12),
         axis.title.y = element_text (size = 14, angle = 90),
         axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+        strip.background = element_blank(),
+        legend.direction = "vertical",
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10)) +
+  labs(x = "Distance from Centromere (Mb)",
+       y = "Adjusted Recombination Rate (cM/Mb)",
+       col = "Chromosome History") 
 
 
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
+dev.off()
 
 
-ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-  #geom_point(alpha = 0) +
-  #stat_smooth() +
-  stat_smooth(method = "gam", formula = y ~ s(x)) +
-  facet_wrap(~CEL.LG) +
+
+
+
+
+
+
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Is it driven by particular chromosomes?  #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+head(bin.tab.sex.acro)
+
+x <- subset(bin.tab.sex.acro, Window <= 5)
+
+head(x)
+
+ggplot(x, aes(factor(Window), Adjusted.Recomb.Rate, col = Fission)) +
+  geom_boxplot(notch = T) +
   scale_colour_brewer(palette = "Set1") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 12),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
+  facet_wrap(~Sex)
 
-# for(i in 1:33){
-# print(ggplot(subset(bin.tab.sex, CEL.LG == i), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-#   #geom_point(alpha = 0) +
-#   stat_smooth() +
-#   facet_wrap(~CEL.LG) +
-#   scale_colour_brewer(palette = "Set1") +
-#   theme(axis.text.x  = element_text (size = 12),
-#         axis.text.y  = element_text (size = 12),
-#         strip.text.x = element_text (size = 12),
-#         axis.title.y = element_text (size = 14, angle = 90),
-#         axis.title.x = element_text (size = 14),
-#         strip.background = element_blank()) +
-#   labs(x = "Relative Chromosomal Position",
-#        y = "Recombination rate (cM/Mb)",
-#        colour = "Sex"))
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Try removing chromosomes #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+for(h in small.chrs){
+  
+  summary(fit <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                     data = subset(bin.tab.sex.acro.small.f, CEL.LG != h)))
+  
+  par(mfrow = c(3,3))
+  x <- plot(fit)
+  dev.off()
+  
+  gamplot <- NULL
+  
+  for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+  
+  gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+  
+  ggplot(gamplot, aes(x, y, colour = ylab)) +
+    geom_line() +
+    geom_line(aes(x, y+se), linetype = "dotted") +
+    geom_line(aes(x, y-se), linetype = "dotted") +
+    scale_colour_brewer(palette = "Set1") +
+    theme(axis.text.x  = element_text (size = 12),
+          axis.text.y  = element_text (size = 12),
+          strip.text.x = element_text (size = 12),
+          axis.title.y = element_text (size = 14, angle = 90),
+          axis.title.x = element_text (size = 14),
+          strip.background = element_blank(),
+          legend.position = "top",
+          legend.direction = "vertical") +
+    ggtitle(paste0("Minus CEL", h))
+  
+  ggsave(paste0("gams/AllSmallAcrosFemales_minus_CEL", h, ".png"))
+  
+}
+
+
+for(h in sort(small.chrs)){
+  
+  small.chrs2 <- sort(small.chrs[-which(small.chrs == h)])
+  
+  for(g in small.chrs2){
+    
+    summary(fit <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                       data = subset(bin.tab.sex.acro.small.f, !CEL.LG %in% c(g, h))))
+    
+    par(mfrow = c(3,3))
+    x <- plot(fit)
+    dev.off()
+    
+    gamplot <- NULL
+    
+    for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+    
+    gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+    
+    ggplot(gamplot, aes(x, y, colour = ylab)) +
+      geom_line() +
+      geom_line(aes(x, y+se), linetype = "dotted") +
+      geom_line(aes(x, y-se), linetype = "dotted") +
+      scale_colour_brewer(palette = "Set1") +
+      theme(axis.text.x  = element_text (size = 12),
+            axis.text.y  = element_text (size = 12),
+            strip.text.x = element_text (size = 12),
+            axis.title.y = element_text (size = 14, angle = 90),
+            axis.title.x = element_text (size = 14),
+            strip.background = element_blank(),
+            legend.position = "top",
+            legend.direction = "vertical") +
+      ggtitle(paste0("Minus CEL", h, "and CEL", g))
+    
+    ggsave(paste0("gams/AllSmallAcrosFemales_minus_CEL", h, "_CEL", g, ".png"))
+    
+  }
+  
+}
+
+acro.chrs <- c(1:4, 6:33)
+
+for(h in sort(acro.chrs)){
+  
+  acro.chrs2 <- sort(acro.chrs[-which(acro.chrs == h)])
+  
+  for(g in acro.chrs){
+    
+    summary(fit <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                       data = subset(bin.tab.sex.acro.f, !CEL.LG %in% c(g, h))))
+    
+    par(mfrow = c(3,3))
+    x <- plot(fit)
+    dev.off()
+    
+    gamplot <- NULL
+    
+    for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+    
+    gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+    
+    ggplot(gamplot, aes(x, y, colour = ylab)) +
+      geom_line() +
+      geom_line(aes(x, y+se), linetype = "dotted") +
+      geom_line(aes(x, y-se), linetype = "dotted") +
+      scale_colour_brewer(palette = "Set1") +
+      theme(axis.text.x  = element_text (size = 12),
+            axis.text.y  = element_text (size = 12),
+            strip.text.x = element_text (size = 12),
+            axis.title.y = element_text (size = 14, angle = 90),
+            axis.title.x = element_text (size = 14),
+            strip.background = element_blank(),
+            legend.position = "top",
+            legend.direction = "vertical") +
+      ggtitle(paste0("Minus CEL", h, "and CEL", g))
+    
+    ggsave(paste0("gams/AllAcrosFemales_minus_CEL", h, "_CEL", g, ".png"))
+    
+  }
+  
+}
+
+
+
+#~~ By fission type, all acros, females only
+
+# head(bin.tab.sex.acro.f)
 # 
+# for(h in sort(unique(bin.tab.sex.acro.f$CEL.LG))){
+#   
+#   summary(fit <- gam(Recomb.Rate ~ s(Window, by = factor(Fission), k = 20) + s(I(1/Est.Length)),
+#                      data = subset(bin.tab.sex.acro.f, CEL.LG != h)))
+#   
+#   par(mfrow = c(3,3))
+#   x <- plot(fit)
+#   dev.off()
+#   
+#   gamplot <- NULL
+#   
+#   for(i in 1:length(x)) gamplot <- rbind(gamplot, data.frame(x = x[[i]]$x, y = x[[i]]$fit[,1], se = x[[i]]$se, ylab = x[[i]]$ylab))
+#   
+#   gamplot <- gamplot[grep("Fission", gamplot$ylab),]
+#   
+#   ggplot(gamplot, aes(x, y, colour = ylab)) +
+#     geom_line() +
+#     geom_line(aes(x, y+se), linetype = "dotted") +
+#     geom_line(aes(x, y-se), linetype = "dotted") +
+#     scale_colour_brewer(palette = "Set1") +
+#     theme(axis.text.x  = element_text (size = 12),
+#           axis.text.y  = element_text (size = 12),
+#           strip.text.x = element_text (size = 12),
+#           axis.title.y = element_text (size = 14, angle = 90),
+#           axis.title.x = element_text (size = 14),
+#           strip.background = element_blank(),
+#           legend.position = "top",
+#           legend.direction = "vertical") +
+#     ggtitle(paste0("Minus CEL", h))
+#   
+#   ggsave(paste0("gams/AllAcrosFemales_minus_CEL", h, ".png"))
+#   
 # }
-
-
-write.table(bin.tab, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb.txt"), row.names = F, sep = "\t", quote = F)
-write.table(bin.tab.sex, paste0("results/8_Recomb_Rate_window_", window.size/1e6, "_Mb_by_sex.txt"), row.names = F, sep = "\t", quote = F)
-
-head(bin.tab.sex)
-
-
-ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
-  geom_point(alpha = 0.1) +
-  scale_colour_brewer(palette = "Set1") +
-  facet_wrap(~Fission)+
-  stat_smooth(method = "gam", formula = y ~ s(x)) +
-  #stat_smooth(method = "loess") +
-  theme(axis.text.x  = element_text (size = 12),
-        axis.text.y  = element_text (size = 12),
-        strip.text.x = element_text (size = 9),
-        axis.title.y = element_text (size = 14, angle = 90),
-        axis.title.x = element_text (size = 14),
-        strip.background = element_blank()) +
-  labs(x = "Relative Chromosomal Position",
-       y = "Recombination rate (cM/Mb)",
-       colour = "Sex")
-
-
-
-
-
 

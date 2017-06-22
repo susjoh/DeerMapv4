@@ -348,6 +348,22 @@ summary(fit1 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 1
 plotGAM(fit1, grep.value = "Fission")
 
 
+summary(fit1a <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                     data = subset(bin.tab.sex.acro.f, Window > 1)))
+
+plotGAM(fit1a, grep.value = "Fission")
+
+summary(fit1b <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                     data = subset(bin.tab.sex.acro.f, Window > 2)))
+
+plotGAM(fit1b, grep.value = "Fission")
+
+summary(fit1c <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10),
+                     data = subset(bin.tab.sex.acro.f, Window > 3)))
+
+plotGAM(fit1c, grep.value = "Fission")
+
+
 #~~ By fission type, small acros only, females only
 
 summary(fit2 <- gam(Adjusted.Recomb.Rate ~ s(Window, by = factor(Fission), k = 10), data = bin.tab.sex.acro.small.f))

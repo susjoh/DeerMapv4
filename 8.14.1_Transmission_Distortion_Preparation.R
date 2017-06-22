@@ -180,9 +180,11 @@ if(extractTransmission == TRUE){
 dadtest <- subset(fullsumm, Dad.Geno == "A/B" & Mum.Geno != "A/B")
 head(dadtest)
 
+
 dadtest$Transmitted <- ifelse(dadtest$Offspring.Geno == "A/A", "A",
                               ifelse(dadtest$Offspring.Geno == "B/B", "B",
-                                     ifelse(dadtest$Offspring.Geno == "A/B" & dadtest$Mum.Geno == "A/A", "B", "A")))
+                                     ifelse(dadtest$Offspring.Geno == "A/B" & dadtest$Mum.Geno == "A/A", "B",
+                                            ifelse(dadtest$Offspring.Geno == "A/B" & dadtest$Mum.Geno == "B/B", "A", NA))))
 
 dadtest <- subset(dadtest, select = c(SNP.Name, Count, Transmitted))
 dadtest <- subset(dadtest, !is.na(Count))
@@ -195,12 +197,15 @@ dadtest$Parent <- "Male"
 
 #~~ Distortion in Mother
 
-mumtest <- subset(fullsumm, Mum.Geno == "A/B" & Dad.Geno != "A/B")
+mumtest <- subset(fullsumm, Mum.Geno == "A/B")
 head(mumtest)
+
+
 
 mumtest$Transmitted <- ifelse(mumtest$Offspring.Geno == "A/A", "A",
                               ifelse(mumtest$Offspring.Geno == "B/B", "B",
-                                     ifelse(mumtest$Offspring.Geno == "A/B" & mumtest$Dad.Geno == "A/A", "B", "A")))
+                                     ifelse(mumtest$Offspring.Geno == "A/B" & mumtest$Dad.Geno == "A/A", "B", 
+                                            ifelse(mumtest$Offspring.Geno == "A/B" & mumtest$Dad.Geno == "B/B", "A", NA))))
 
 mumtest <- subset(mumtest, select = c(SNP.Name, Count, Transmitted))
 mumtest <- subset(mumtest, !is.na(Count))
@@ -305,7 +310,7 @@ ggplot(subset(subtrans, Dummy.Position < 40e6 & CEL.LG != 5),
 substrans <- arrange(subtrans, Minor.Trans.Freq)
 substrans[1:20,]
 
-#~~ Compare males and females
+  #~~ Compare males and females
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

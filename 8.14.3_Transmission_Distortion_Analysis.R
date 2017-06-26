@@ -241,6 +241,11 @@ dev.off()
 
 head(realsumm)
 
+finalsumm <- subset(realsumm, select = -c(Minor.Transmitted.Frequency, Sex, Label))
+head(finalsumm)
+
+finalsumm <- arrange(finalsumm, CEL.LG, CEL.order, Parent)
+write.table(finalsumm, "doc/TableS6_Transmission_Distortion.txt", row.names = F, sep = "\t", quote = F)
 
 #~~ Run a statistical analysis...
 

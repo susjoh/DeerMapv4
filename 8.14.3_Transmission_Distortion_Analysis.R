@@ -62,29 +62,6 @@ head(offped)
 
 fullsumm <- read.table("results/8_Allele_Transmission_Summary.txt", header = T, stringsAsFactors = F)
 
-nullsumm <- NULL
-
-for(i in seq(0, 900, 100)){
-  
-  print(paste("Loading iteration", i))
-  load(paste0("results/8.14.2_Transmission_NULL_", i, ".RData"), verbose = T)
-  nullsumm <- rbind(nullsumm, sim.res)
-  rm(sim.res)
-  
-}
-
-head(nullsumm)
-
-nullsumm$A.Count <- NA
-
-nullsumm$A.Count[which(nullsumm$Parent == "MOTHER")] <- nullsumm$Mum.A.Count[which(nullsumm$Parent == "MOTHER")]
-nullsumm$A.Count[which(nullsumm$Parent == "FATHER")] <- nullsumm$Dad.A.Count[which(nullsumm$Parent == "FATHER")]
-
-nullsumm$Dad.A.Count <- NULL
-nullsumm$Mum.A.Count <- NULL
-
-gc()
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Use heterozygote/homozygote matings to                      #
 # determine transmission distortion                           #
@@ -147,7 +124,7 @@ mumtest$B <- NULL
 realsumm <- rbind(mumtest, dadtest)
 head(realsumm)
 
-rm(offped, dadtest, mumtest, famped, recsumm, abeldata, i)
+rm(offped, dadtest, mumtest, famped, recsumm, abeldata)
 
 
 
@@ -156,54 +133,9 @@ rm(offped, dadtest, mumtest, famped, recsumm, abeldata, i)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 head(realsumm)
-head(nullsumm)
+realsumm <- subset(realsumm, !is.na(Geno.Count))
 
-#~~ Get the mean and st dev of the null distribution
-
-temp <- data.frame(SD = tapply(nullsumm$A.Count, list(nullsumm$SNP.Name, nullsumm$Parent), sd),
-                   Mean = tapply(nullsumm$A.Count, list(nullsumm$SNP.Name, nullsumm$Parent), mean),
-                   RangeLower = tapply(nullsumm$A.Count, list(nullsumm$SNP.Name, nullsumm$Parent), function(x) range(x)[1]),
-                   RangeUpper = tapply(nullsumm$A.Count, list(nullsumm$SNP.Name, nullsumm$Parent), function(x) range(x)[2]))
-temp$SNP.Name <- row.names(temp)
-temp <- melt(temp, id.vars = "SNP.Name")
-head(temp)
-
-temp$Parent   <- sapply(as.character(temp$variable), function(x) strsplit(x, split = ".", fixed = T)[[1]][2])
-temp$variable <- sapply(as.character(temp$variable), function(x) strsplit(x, split = ".", fixed = T)[[1]][1])
-
-temp <- cast(temp, SNP.Name + Parent ~ variable)
-
-
-#~~ Work out where the observed value fits in the distribution
-
-
-nullsumm <- rbind(cbind(realsumm, Iteration = 0), nullsumm)
-
-temp2 <- tapply(nullsumm$A.Count, list(nullsumm$SNP.Name, nullsumm$Parent), function(x) length(which(x[1] <= x[2:1001])))
-temp2 <- melt(temp2)
-names(temp2) <- c("SNP.Name", "Parent", "Real.A.is.lower")
-
-#~~ Add values to observed data
-
-realsumm <- join(realsumm, temp)
-realsumm <- join(realsumm, temp2)
-
-realsumm$P.val <- -abs(realsumm$A.Count - realsumm$Mean)
-
-obs <- observed value
-exp <- expectation of normal null
-sd <- sd of normal null
-
-then one way to compute the two-sided p value is
-
-2*pnorm(-abs(obs - exp), exp, sd)
-
-
-head(realsumm)
-
-realsumm$Deviation <- ifelse(realsumm$Real.A.is.lower< 500, realsumm$Real.A.is.lower, 1000 - realsumm$Real.A.is.lower)
-realsumm$SD.Count <- (realsumm$A.Count-realsumm$Mean)/realsumm$SD
-realsumm$SD.Count <- ifelse(realsumm$SD.Count > 0, realsumm$SD.Count, realsumm$SD.Count * -1)
+realsumm$P.val <- mapply(function(x, y) binom.test(x, y, p = 0.5)$p.value, realsumm$A.Count, realsumm$Geno.Count) 
 
 realsumm <- join(realsumm, subset(mapdata, select = c(SNP.Name, CEL.order, CEL.LG, Fission, cMPosition.run5, Dummy.Position)))
 # realsumm <- subset(realsumm, CEL.LG != lg.sex)
@@ -213,58 +145,142 @@ head(realsumm)
 
 #~~ Plot the results
 
-ggplot(realsumm, aes(CEL.order, Deviation, col = Parent)) +
+ggplot(realsumm, aes(P.val)) + geom_histogram(binwidth = 0.001)
+ggplot(subset(realsumm, -log10(P.val) > 0.01), aes(sqrt(-log10(P.val)))) + geom_histogram(binwidth = 0.05)
+
+
+# ggplot(subset(realsumm, Dummy.Position <= 10e6 & CEL.LG %in% c(1:4, 6:33)), aes(Dummy.Position, -log10(P.val), col = Parent)) +
   #geom_point(alpha = 0) +
-  stat_smooth(method = "loess", span = 0.1) +
+  stat_smooth(method = "loess", span = 0.2) +
+  facet_wrap(~CEL.LG, scales = "free_x") +
+  scale_color_brewer(palette = "Set1") +
+  labs(x = "Estimated Position (Mb)")
+
+
+ggplot(realsumm, aes(CEL.order, -log10(P.val), col = Parent)) +
+  geom_point(alpha = 0.7) +
+  #stat_smooth(method = "loess", span = 0.1) +
   facet_wrap(~CEL.LG, scales = "free_x") +
   scale_color_brewer(palette = "Set1")
 
-ggplot(realsumm, aes(CEL.order, SD.Count, col = Parent)) +
+ggplot(subset(realsumm, Dummy.Position <= 20e6), aes(CEL.order, -log10(P.val), col = Parent)) +
   #geom_point(alpha = 0) +
-  stat_smooth(method = "loess", span = 0.1) +
+  stat_smooth(method = "loess", span = 0.05) +
   facet_wrap(~CEL.LG, scales = "free_x") +
   scale_color_brewer(palette = "Set1")
 
-ggplot(realsumm, aes(CEL.order, SD.Count, col = Parent)) +
-  geom_point(alpha = 0.2) +
+ggplot(realsumm, aes(CEL.order, -log10(P.val), col = Parent)) +
+  #geom_point(alpha = 0) +
+  stat_smooth(method = "loess", span = 0.01, fullrange = F) +
   facet_wrap(~CEL.LG, scales = "free_x") +
   scale_color_brewer(palette = "Set1")
 
-ggplot(realsumm, aes(CEL.order, Deviation, col = Fission)) +
+ggplot(subset(realsumm, Dummy.Position <= 40e6 & Fission != "D_Fusion"), aes(Dummy.Position, -log10(P.val), col = Fission)) +
+  #geom_point(alpha = 0) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
+  facet_wrap(~Parent, scales = "free_x") +
+  scale_color_brewer(palette = "Set1")
+
+
+ggplot(realsumm, aes(CEL.order, -log10(P.val), col = Fission)) +
   #geom_point(alpha = 0) +
   facet_wrap(~Parent) +
   stat_smooth(method = "loess", span = 0.05) +
   scale_color_brewer(palette = "Set1")
 
-ggplot(subset(realsumm, Dummy.Position < 40e6 & Fission != "D_Fusion"), aes(Dummy.Position, SD.Count, col = Fission)) +
+ggplot(subset(realsumm, Dummy.Position < 40e6 & Fission != "D_Fusion"), aes(CEL.order, -log10(P.val), col = Fission)) +
   #geom_point(alpha = 0) +
   facet_wrap(~Parent) +
   stat_smooth(method = "loess", span = 0.05) +
   scale_color_brewer(palette = "Set1") 
 
-ggplot(realsumm, aes(CEL.order, SD.Count, col = Fission, group = CEL.LG)) +
+ggplot(subset(realsumm, Dummy.Position < 40e6 & Fission != "D_Fusion"), aes(Bin, -log10(P.val), col = Fission)) +
   #geom_point(alpha = 0) +
   facet_wrap(~Parent) +
+  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
+  scale_color_brewer(palette = "Set1") 
+
+ggplot(subset(realsumm, Dummy.Position < 40e6 & Fission != "D_Fusion"), aes(CEL.order, -log10(P.val), col = Fission, group = CEL.LG)) +
+  #geom_point(alpha = 0) +
+  facet_wrap(~Parent) +
+  stat_smooth(method = "loess", span = 0.15, se = F) +
   scale_color_brewer(palette = "Set1")
 
 
-ggplot(subset(realsumm, Dummy.Position < 10e6 & Fission != "D_Fusion"),
-       aes(factor(Bin), SD.Count, fill = Fission)) +
-  geom_boxplot(notch = T) +
+ggplot(realsumm, aes(sqrt(P.val))) + geom_histogram()
+realsumm$Sex <- gsub("FATHER", "Male", realsumm$Parent)
+realsumm$Sex <- gsub("MOTHER", "Female", realsumm$Sex)
+
+ggplot(subset(realsumm, Bin < 11 & Fission != "D_Fusion"), aes(factor(Bin), -log10(P.val), fill = Fission)) +
   facet_wrap(~Parent) +
+  geom_boxplot(notch = T, outlier.alpha = 0.4) +
   scale_fill_brewer(palette = "Set1")
 
+realsumm$Label <- realsumm$Fission
+realsumm$Label[grep("A_", realsumm$Label)] <- "Fission, old centromere"
+realsumm$Label[grep("B_", realsumm$Label)] <- "Fission, new centromere"
+realsumm$Label[grep("C_", realsumm$Label)] <- "No fission or fusion"
 
-ggplot(subset(realsumm, CEL.LG != lg.sex), aes(Geno.Count, SD.Count)) + geom_point() + stat_smooth() + facet_wrap(~Parent)
+pdf("figs/Transmission_Distortion.pdf", width = 8.5, height = 10) 
 
-ggplot(realsumm, aes(SD.Count)) + geom_histogram(binwidth = 0.1, colour = "white") + facet_wrap(~Parent)
+ggplot(subset(realsumm, Bin < 11 & Fission != "D_Fusion"), aes(factor(Bin), sqrt(-log10(P.val)), fill = Label)) +
+  facet_wrap(~Sex, ncol = 1) +
+  geom_boxplot(notch = T, outlier.alpha = 0.4) +
+  scale_fill_brewer(palette = "Dark2") +
+  theme(legend.position = "top") +
+  labs(x = "Bin (1Mb intervals from centromere)", y = "Square root of Log(10) P-value", fill = "") +
+  theme(axis.text.x  = element_text (size = 12),
+        axis.text.y  = element_text (size = 12),
+        strip.text.x = element_text (size = 12),
+        axis.title.y = element_text (size = 14, angle = 90),
+        axis.title.x = element_text (size = 14),
+        strip.background = element_blank(),
+        legend.text = element_text(size = 12))
+
+dev.off()
+
+head(realsumm)
 
 
-#~~ Make the bins
-obs = 15
-mean = 10
-sd = 5
+#~~ Run a statistical analysis...
 
-pnorm(15, 10, 5)
+library(lme4)
+x <- subset(realsumm, P.val < 1 & Bin < 11 & Fission != "D_Fusion" & Parent == "MOTHER")
+
+test1 <- lmer(sqrt(-log10(P.val)) ~  factor(Bin) * Fission + (1|CEL.LG), data = x)
+summary(test1)
+
+test1 <- glm(sqrt(-log10(P.val)) ~  factor(Bin) * Fission, data = x, family = "gaussian")
+summary(test1)
+
+table(x$Fission, x$Bin)
+
+
+x <- subset(realsumm, P.val < 1 & Bin < 11 & Fission != "D_Fusion" & Parent == "FATHER")
+
+test1 <- glm(sqrt(-log10(P.val)) ~  factor(Bin) * Fission, data = x, family = "gaussian")
+summary(test1)
+
+table(x$Fission, x$Bin)
+
+
+
+
+
+library(mgcv)
+source("r/plotGAM.R")
+
+x <- subset(realsumm, P.val < 1 & Bin < 40 & Fission != "D_Fusion" & Parent == "MOTHER")
+x$P.val.trans <- sqrt(-log10(x$P.val))
+
+summary(fit1 <- gam(P.val  ~ s(Bin, by = factor(Fission), k = 5), data = x))
+plotGAM(fit1, grep.value = "Fission")
+
+x <- subset(realsumm, P.val < 1 & Bin < 40 & Fission != "D_Fusion" & Parent == "FATHER")
+x$P.val.trans <- sqrt(-log10(x$P.val))
+
+summary(fit1 <- gam(P.val  ~ s(Bin, by = factor(Fission), k = 20), data = x))
+plotGAM(fit1, grep.value = "Fission")
+
 
 

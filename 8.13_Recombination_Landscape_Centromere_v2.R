@@ -354,6 +354,9 @@ bin.tab.sex.acro <- na.omit(bin.tab.sex.acro)
 
 # Raw
 
+pdf(paste0("figs/Fig4_Recomb_Rate_window_", window.size/1e6, "_spline.pdf"), width = 6, height = 4)
+
+
 ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Recomb.Rate, colour = Sex)) +
   #geom_point(alpha = 0.2) +
   #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
@@ -369,7 +372,9 @@ ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Recomb.Rate, colour =
        y = "Raw Recombination rate (cM/Mb)",
        colour = "Sex") 
 
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
+dev.off()
+
+#ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
 
 
 # Adjusted
@@ -394,6 +399,8 @@ ggplot(bin.tab.sex.acro, aes(x = ChromosomeProportion, y = Adjusted.Recomb.Rate,
 
 #~~ Spline of recombination rate on window spline on each chromosomes
 
+pdf(paste0("figs/Fig5_Recomb_Rate_window_", window.size/1e6, "_spline_by_LG.pdf"), width = 10, height = 14)
+
 ggplot(bin.tab.sex, aes(x = Window, y = Recomb.Rate, colour = Sex)) +
   geom_line(alpha = 0.4) +
   stat_smooth(method = "loess", span = 0.2) +
@@ -409,7 +416,9 @@ ggplot(bin.tab.sex, aes(x = Window, y = Recomb.Rate, colour = Sex)) +
        y = "Recombination rate (cM/Mb)",
        colour = "Sex")
 
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_LG.png"), width = 10, height = 14, device = "png")
+dev.off()
+
+#ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline_by_LG.png"), width = 10, height = 14, device = "png")
 
 
 #~~ Look at splines based on chromosome type

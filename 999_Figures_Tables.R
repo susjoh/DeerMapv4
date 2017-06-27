@@ -186,7 +186,7 @@ sex.map <- melt(subset(run5, select = c(SNP.Name, CEL.order, CEL.LG, cMPosition.
 head(sex.map)
 sex.map$variable <- gsub("cMPosition.", "", sex.map$variable)
 sex.map$CEL.LG2 <- paste0("CEL", sex.map$CEL.LG)
-levels(sex.map$CEL.LG2) <- paste0("CEL", 1:34)
+sex.map$CEL.LG2 <- factor(sex.map$CEL.LG2, levels = paste0("CEL", 1:34))
 
 pdf(file = "figs/Fig2_LinkageMapRun5_sexspecific.pdf", height = 14, width = 10)
 
@@ -201,11 +201,12 @@ ggplot(sex.map, aes(CEL.order, value, col = variable)) +
         axis.title.x = element_text (size = 14),
         strip.background = element_blank()) +
   labs(x = "CEL Marker Order",
-       y = "Linkage Map Length (cM)")
+       y = "Linkage Map Length (cM)",
+       col = "Sex")
 
 dev.off()
 
-ggsave(filename = paste0("figs/LinkageMapRun5_sexspecific.png"), device = "png", width = 10, height = 14, units = "in")
+#ggsave(filename = paste0("figs/LinkageMapRun5_sexspecific.png"), device = "png", width = 10, height = 14, units = "in")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

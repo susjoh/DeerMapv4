@@ -108,6 +108,7 @@ run5$CEL.LG.lab <- paste0("CEL", run5$CEL.LG)
 run5$CEL.LG.lab <- factor(run5$CEL.LG.lab, levels = paste0("CEL", sort(unique(run5$CEL.LG))))
 
 
+pdf(file = "figs/Fig2_LinkageMapRun5.pdf", height = 14, width = 10)
 
 ggplot(run5, aes(CEL.order, cMPosition.run5)) +
   geom_point(alpha = 0.2) +
@@ -121,7 +122,9 @@ ggplot(run5, aes(CEL.order, cMPosition.run5)) +
   labs(x = "CEL Marker Order",
        y = "Linkage Map Length (cM)")
 
-ggsave("figs/LinkageMapRun5.png", width = 10, height = 14, device = "png")
+dev.off()
+
+#ggsave("figs/LinkageMapRun5.png", width = 10, height = 14, device = "png")
 
 ggplot(run5, aes(BTA.Position, cMPosition.run5, col = factor(BTA.Chr))) +
   geom_point(alpha = 0.2) +
@@ -185,6 +188,8 @@ sex.map$variable <- gsub("cMPosition.", "", sex.map$variable)
 sex.map$CEL.LG2 <- paste0("CEL", sex.map$CEL.LG)
 levels(sex.map$CEL.LG2) <- paste0("CEL", 1:34)
 
+pdf(file = "figs/Fig2_LinkageMapRun5_sexspecific.pdf", height = 14, width = 10)
+
 ggplot(sex.map, aes(CEL.order, value, col = variable)) +
   geom_point() +
   facet_wrap(~CEL.LG2, ncol = 5, scales = "free") +
@@ -197,6 +202,8 @@ ggplot(sex.map, aes(CEL.order, value, col = variable)) +
         strip.background = element_blank()) +
   labs(x = "CEL Marker Order",
        y = "Linkage Map Length (cM)")
+
+dev.off()
 
 ggsave(filename = paste0("figs/LinkageMapRun5_sexspecific.png"), device = "png", width = 10, height = 14, units = "in")
 

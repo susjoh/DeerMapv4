@@ -259,10 +259,12 @@ ggplot(test, aes(NewBin, value, col = variable)) +
 
 ggplot(bin.tab.sex, aes(ChromosomeProportion)) + geom_histogram(binwidth = 0.01)
 
-ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
+pdf(paste0("figs/Fig4_Recomb_Rate_window_", window.size/1e6, "_spline.pdf"), width = 6, height = 4)
+
+ggplot(subset(bin.tab.sex, CEL.LG != 34 & CEL.LG != 5), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
   #geom_point(alpha = 0) +
-  stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
-  stat_smooth() +
+  #stat_smooth(method = "gam", formula = y ~ s(x, k = 20), size = 1) +
+  stat_smooth(method = "loess", span = 0.15) +
   scale_colour_brewer(palette = "Set1") +
   theme(axis.text.x  = element_text (size = 12),
         axis.text.y  = element_text (size = 12),
@@ -273,9 +275,9 @@ ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate,
   labs(x = "Relative Chromosomal Position",
        y = "Recombination rate (cM/Mb)",
        colour = "Sex")
+dev.off()
 
-
-ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
+#ggsave(paste0("figs/Recomb_Rate_window_", window.size/1e6, "_spline.png"), width = 6, height = 4, device = "png")
 
 
 ggplot(subset(bin.tab.sex, CEL.LG != 34), aes(ChromosomeProportion, Recomb.Rate, colour = Sex)) +
